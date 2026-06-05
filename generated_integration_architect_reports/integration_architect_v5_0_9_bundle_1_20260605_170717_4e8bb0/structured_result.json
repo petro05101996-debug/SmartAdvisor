@@ -1,0 +1,1664 @@
+{
+  "ctx": {
+    "fields": [
+      {
+        "name": "id",
+        "original": "id",
+        "type": "uuid",
+        "required": true,
+        "unique": false,
+        "indexed": false,
+        "sensitive": false
+      },
+      {
+        "name": "status",
+        "original": "status",
+        "type": "text",
+        "required": true,
+        "unique": false,
+        "indexed": false,
+        "sensitive": false
+      },
+      {
+        "name": "correlation_id",
+        "original": "correlationId",
+        "type": "text",
+        "required": false,
+        "unique": false,
+        "indexed": true,
+        "sensitive": false
+      }
+    ],
+    "systems": [
+      {
+        "name": "API Gateway",
+        "role": "приём команды",
+        "owner": "Product",
+        "criticality": "critical",
+        "channel": "rest",
+        "blocking": "blocking",
+        "sla": "1s"
+      },
+      {
+        "name": "Core Service",
+        "role": "владелец процесса",
+        "owner": "Backend",
+        "criticality": "critical",
+        "channel": "db,kafka",
+        "blocking": "blocking",
+        "sla": "3s"
+      },
+      {
+        "name": "Target Service",
+        "role": "обработка результата",
+        "owner": "Backend",
+        "criticality": "important",
+        "channel": "kafka,db",
+        "blocking": "non_blocking",
+        "sla": "30s"
+      }
+    ],
+    "steps": [
+      {
+        "level": "0",
+        "order": "1",
+        "parent": "root",
+        "step": "Принять команду",
+        "system": "API Gateway",
+        "channel": "rest",
+        "input": "request",
+        "output": "trackingId",
+        "timeout": "1s",
+        "retry": "no",
+        "compensation": "validation error",
+        "blocking": "blocking",
+        "owner": "Product"
+      },
+      {
+        "level": "1",
+        "order": "2",
+        "parent": "1",
+        "step": "Зафиксировать процесс",
+        "system": "Core Service",
+        "channel": "db",
+        "input": "command",
+        "output": "state",
+        "timeout": "1s",
+        "retry": "yes",
+        "compensation": "manual recovery",
+        "blocking": "blocking",
+        "owner": "Backend"
+      },
+      {
+        "level": "2",
+        "order": "3",
+        "parent": "2",
+        "step": "Передать событие",
+        "system": "Core Service",
+        "channel": "kafka",
+        "input": "state",
+        "output": "event",
+        "timeout": "1s",
+        "retry": "yes",
+        "compensation": "outbox retry",
+        "blocking": "non_blocking",
+        "owner": "Backend"
+      },
+      {
+        "level": "3",
+        "order": "4",
+        "parent": "3",
+        "step": "Обработать результат",
+        "system": "Target Service",
+        "channel": "kafka/db",
+        "input": "event",
+        "output": "projection",
+        "timeout": "30s",
+        "retry": "yes",
+        "compensation": "DLQ/manual",
+        "blocking": "non_blocking",
+        "owner": "Backend"
+      }
+    ],
+    "errors": [
+      {
+        "error": "timeout",
+        "where": "downstream",
+        "blocking": "blocking",
+        "retry": "yes",
+        "after_retry": "retry/DLQ/manual",
+        "owner": "owner"
+      }
+    ],
+    "target_integrations": [
+      {
+        "from": "API Gateway",
+        "to": "Core Service",
+        "channel": "REST",
+        "mode": "sync",
+        "trigger": "command",
+        "data": "entity data",
+        "contract": "API v1",
+        "timeout": "1s",
+        "retry": "yes/backoff",
+        "retry_limit": "3",
+        "dlq": "no",
+        "idempotency": "idempotencyKey",
+        "auth": "service auth",
+        "rate_limit": "уточнить",
+        "owner": "Product"
+      },
+      {
+        "from": "Core Service",
+        "to": "Target Service",
+        "channel": "Kafka",
+        "mode": "async",
+        "trigger": "state changed",
+        "data": "event payload",
+        "contract": "EntityChanged.v1",
+        "timeout": "30s",
+        "retry": "yes/backoff",
+        "retry_limit": "5",
+        "dlq": "yes",
+        "idempotency": "eventId+aggregateVersion",
+        "auth": "service auth",
+        "rate_limit": "уточнить",
+        "owner": "Backend"
+      }
+    ],
+    "process_flow": [
+      {
+        "step_id": "S1",
+        "parent_id": "root",
+        "condition": "request accepted",
+        "action": "создать заявку и status=NEW",
+        "system": "API",
+        "success_next": "S2",
+        "failure_next": "E_VALIDATION",
+        "timeout_next": "E_TIMEOUT",
+        "compensation": "none",
+        "manual_recovery": "no"
+      },
+      {
+        "step_id": "S2",
+        "parent_id": "S1",
+        "condition": "scoring required",
+        "action": "вызвать скоринг",
+        "system": "Process Manager",
+        "success_next": "S3",
+        "failure_next": "E_SCORING",
+        "timeout_next": "E_TIMEOUT",
+        "compensation": "set ERROR/RETRY",
+        "manual_recovery": "yes"
+      },
+      {
+        "step_id": "S3",
+        "parent_id": "S2",
+        "condition": "approved",
+        "action": "опубликовать событие статуса",
+        "system": "Publisher",
+        "success_next": "END",
+        "failure_next": "E_PUBLISH",
+        "timeout_next": "E_RETRY",
+        "compensation": "retry/dlq",
+        "manual_recovery": "yes"
+      }
+    ],
+    "contracts_declared": [
+      {
+        "type": "API",
+        "name": "CreateApplication",
+        "producer": "Frontend",
+        "consumer": "API",
+        "endpoint_or_topic": "/application/v1/create",
+        "method_or_key": "POST",
+        "required_fields": "clientId,amount,term,idempotencyKey",
+        "optional_fields": "comment",
+        "errors": "400,409,422,500",
+        "version": "v1",
+        "compatibility": "backward"
+      },
+      {
+        "type": "EVENT",
+        "name": "ApplicationStatusChanged",
+        "producer": "API/Publisher",
+        "consumer": "CRM,DWH",
+        "endpoint_or_topic": "application.status.changed.v1",
+        "method_or_key": "aggregateId",
+        "required_fields": "eventId,aggregateId,status,aggregateVersion,occurredAt",
+        "optional_fields": "reason,source",
+        "errors": "schema_validation_error",
+        "version": "v1",
+        "compatibility": "backward"
+      },
+      {
+        "type": "API",
+        "name": "EnrichContract",
+        "producer": "Publisher",
+        "consumer": "Enrichment Service",
+        "endpoint_or_topic": "/enrichment/v1/contracts/{id}",
+        "method_or_key": "GET",
+        "required_fields": "contractId,asOfVersion",
+        "optional_fields": "customerSegment",
+        "errors": "404,429,500",
+        "version": "v1",
+        "compatibility": "backward"
+      }
+    ],
+    "business_rules": [
+      {
+        "rule_id": "BR1",
+        "condition": "сумма > лимита",
+        "action": "отправить на ручную проверку",
+        "affected_step": "S2",
+        "owner": "Бизнес-владелец",
+        "error_if_failed": "MANUAL_REVIEW_REQUIRED"
+      },
+      {
+        "rule_id": "BR2",
+        "condition": "договор закрыт",
+        "action": "не публиковать событие обновления",
+        "affected_step": "S3",
+        "owner": "Договорный сервис",
+        "error_if_failed": "CONTRACT_CLOSED"
+      },
+      {
+        "rule_id": "BR3",
+        "condition": "пришло старое событие version ниже текущей",
+        "action": "игнорировать и записать аудит",
+        "affected_step": "Consumer",
+        "owner": "Target owner",
+        "error_if_failed": "OUTDATED_EVENT"
+      }
+    ],
+    "capacity_declared": [
+      {
+        "flow": "status_events",
+        "avg_rps": "500",
+        "peak_rps": "2500",
+        "avg_payload_kb": "5",
+        "max_payload_kb": "50",
+        "events_per_day": "10000000",
+        "useful_filter_ratio": "100%",
+        "partitions": "12",
+        "consumers": "6",
+        "db_write_tps": "300",
+        "max_lag": "60s",
+        "replay_volume": "1 day",
+        "backfill_window": "24h",
+        "external_rate_limit": "none"
+      },
+      {
+        "flow": "shared_topic_filter",
+        "avg_rps": "2000",
+        "peak_rps": "10000",
+        "avg_payload_kb": "8",
+        "max_payload_kb": "100",
+        "events_per_day": "50000000",
+        "useful_filter_ratio": "0.2%",
+        "partitions": "24",
+        "consumers": "12",
+        "db_write_tps": "50",
+        "max_lag": "300s",
+        "replay_volume": "6h",
+        "backfill_window": "12h",
+        "external_rate_limit": "target API 100 rps"
+      }
+    ],
+    "observability_declared": [
+      {
+        "metric": "consumer_lag",
+        "where": "Kafka consumer group",
+        "threshold": "> 10000 events or > 5m",
+        "alert": "yes",
+        "owner": "Platform",
+        "dashboard": "Kafka dashboard"
+      },
+      {
+        "metric": "dlq_size",
+        "where": "DLQ topic",
+        "threshold": "> 100 messages",
+        "alert": "yes",
+        "owner": "Consumer owner",
+        "dashboard": "DLQ dashboard"
+      },
+      {
+        "metric": "stuck_status_count",
+        "where": "Process Manager",
+        "threshold": "> 0 for 15m",
+        "alert": "yes",
+        "owner": "Backend",
+        "dashboard": "Operations dashboard"
+      },
+      {
+        "metric": "reconciliation_diff",
+        "where": "DWH reconciliation",
+        "threshold": "> 0 critical records",
+        "alert": "yes",
+        "owner": "Data team",
+        "dashboard": "DWH quality dashboard"
+      }
+    ],
+    "rollout_declared": [
+      {
+        "phase": "P1",
+        "scope": "один consumer/один тип события",
+        "strategy": "feature toggle",
+        "rollback": "выключить consumer, оставить старый поток",
+        "backfill": "no",
+        "parallel_compare": "compare counts",
+        "go_no_go": "errors < 1%, lag < 1m",
+        "owner": "Backend"
+      },
+      {
+        "phase": "P2",
+        "scope": "все потребители",
+        "strategy": "phased rollout",
+        "rollback": "откат toggle + replay",
+        "backfill": "last 24h",
+        "parallel_compare": "compare statuses",
+        "go_no_go": "no lost events, no duplicates",
+        "owner": "Platform"
+      },
+      {
+        "phase": "P3",
+        "scope": "DWH витрина",
+        "strategy": "parallel run",
+        "rollback": "вернуться на старую витрину",
+        "backfill": "30 days",
+        "parallel_compare": "row count + checksum",
+        "go_no_go": "diff=0 critical",
+        "owner": "Data team"
+      }
+    ],
+    "data_quality_lineage": [
+      {
+        "data_object": "ApplicationStatus",
+        "source": "Order DB",
+        "target": "Kafka/CRM/DWH",
+        "check": "count by status + checksum by aggregateId",
+        "frequency": "hourly",
+        "evidence": "reconciliation_runs",
+        "owner": "Data owner"
+      },
+      {
+        "data_object": "ContractEvent",
+        "source": "Contract Service",
+        "target": "Target Service",
+        "check": "aggregateVersion monotonic, required fields not null",
+        "frequency": "each batch/event",
+        "evidence": "validation log",
+        "owner": "Contract team"
+      },
+      {
+        "data_object": "CustomerCard",
+        "source": "CRM+ABS+KYC",
+        "target": "BFF Read Model",
+        "check": "freshness per block, partial response flag",
+        "frequency": "realtime",
+        "evidence": "dashboard",
+        "owner": "App team"
+      }
+    ],
+    "statuses": [
+      "NEW",
+      "PROCESSING",
+      "SUCCESS",
+      "FAILED"
+    ],
+    "final_statuses": [
+      "SUCCESS",
+      "FAILED"
+    ],
+    "business": {
+      "active_scenarios": [
+        "client_status_screen",
+        "dwh_reporting",
+        "highload_read",
+        "multi_step_business_process",
+        "personal_data_exchange",
+        "strict_ordering_required"
+      ],
+      "derived_requirements": [
+        "Клиенту нужен быстрый и понятный статус, а не зависание экрана.",
+        "Нужны status history, last_updated и человекочитаемые промежуточные статусы.",
+        "Данные часто читаются; допустим быстрый контур чтения с контролируемым устареванием.",
+        "Нужен владелец процесса, state machine, таймауты, retry policy и manual recovery.",
+        "DWH/отчётность не должны блокировать core/client flow; нужны quality checks, lineage, incremental load и reconciliation.",
+        "ПДн/чувствительные данные требуют минимизации, маскирования логов, шифрования и аудита доступа.",
+        "Нужны aggregate_id/partition key, sequence/version и обработка out-of-order событий."
+      ],
+      "recommended_controls": [
+        "Показывать время последнего обновления и статус \"обновляется\".",
+        "TTL/invalidation/cache stampede protection/cache warmup."
+      ],
+      "pattern_boosts": [
+        "cache",
+        "cdc",
+        "cqrs",
+        "etl",
+        "fallback",
+        "inbox",
+        "outbox",
+        "queue",
+        "read_model_business",
+        "saga"
+      ],
+      "conflicts": [],
+      "questions": [
+        "Какой максимальный допустимый возраст данных на клиентском экране?",
+        "Что хуже для бизнеса: медленный ответ или слегка устаревший результат?",
+        "Можно ли показать частичный/последний известный результат при сбое источника?"
+      ]
+    },
+    "input_quality": {
+      "blocked": false,
+      "hard_gaps": [],
+      "soft_gaps": [],
+      "score": 100
+    },
+    "case_classes": [
+      {
+        "id": "non_invasive_extension",
+        "title": "Non-invasive extension of existing/source flow",
+        "score": 109,
+        "why": "Source/core flow нельзя менять; главный каркас должен быть read-only/CDC/file/adapter или честный compromise, а не invasive Saga/Outbox.",
+        "top_level": "Non-invasive Existing Process Extension",
+        "required_controls": [
+          "read_only_boundary",
+          "cdc_or_file_export",
+          "local_projection",
+          "reconciliation",
+          "residual_risk_adr"
+        ]
+      },
+      {
+        "id": "saga_orchestration",
+        "title": "Saga / long-running E2E process",
+        "score": 94,
+        "why": "Процесс состоит из нескольких систем/шагов; нужен владелец процесса, статусы, retry, compensation/manual recovery.",
+        "top_level": "Orchestrated E2E Process",
+        "required_controls": [
+          "process_state",
+          "step_statuses",
+          "timeouts",
+          "retry_dlq",
+          "compensation",
+          "manual_recovery"
+        ]
+      },
+      {
+        "id": "dwh_pipeline",
+        "title": "DWH / analytical pipeline",
+        "score": 58,
+        "why": "Отчётность и аналитика должны быть неблокирующим контуром с lineage, retention, watermark/offset и reconciliation; это не command/event idempotency case.",
+        "top_level": "Data Pipeline / DWH",
+        "required_controls": [
+          "cdc_or_etl",
+          "watermark_or_offset",
+          "lineage",
+          "quality_checks",
+          "retention",
+          "reconciliation"
+        ]
+      }
+    ]
+  },
+  "traits": {
+    "operation_kind": "command_create_update",
+    "reliability_key": "Idempotency-Key или business request key для небезопасных повторов",
+    "highload_stream_ingestion": false,
+    "active_active_financial_write": false,
+    "multi_tenant_noisy_neighbor": false,
+    "highload": false,
+    "lowload": false,
+    "bursty": false,
+    "rps": 50,
+    "peak": 2,
+    "existing": true,
+    "no_changes": true,
+    "can_change_core": false,
+    "can_add_outbox": false,
+    "can_add_event": false,
+    "can_add_cdc": false,
+    "compromise_mode": true,
+    "new_service_forbidden": false,
+    "new_infra_forbidden": false,
+    "source_minimal_only": false,
+    "source_read_only": true,
+    "source_can_add_minimal_outbox": false,
+    "risk_appetite_high": false,
+    "risk_appetite_low": false,
+    "chain": true,
+    "multi_level": true,
+    "fanout": false,
+    "unknown_orchestration": false,
+    "choreography": false,
+    "orchestrated": true,
+    "bpm": false,
+    "sync": true,
+    "async": true,
+    "event_needed": true,
+    "queue_needed": true,
+    "file_needed": false,
+    "soap_needed": false,
+    "cdc_needed": true,
+    "etl_needed": false,
+    "dwh": true,
+    "legacy": false,
+    "partner": false,
+    "saga": false,
+    "outbox_needed": false,
+    "inbox_needed": true,
+    "dedupe": true,
+    "strict_order": true,
+    "global_order": false,
+    "replay": true,
+    "event_sourcing": false,
+    "large_data": true,
+    "very_large": false,
+    "sensitive": true,
+    "regulated": false,
+    "ha": true,
+    "dr": false,
+    "many_systems": true,
+    "blocking_chain_len": 2,
+    "customer_visible": true,
+    "money_impact": false,
+    "direct_money_impact": false,
+    "regulatory_impact": false,
+    "read_heavy": true,
+    "very_read_heavy": false,
+    "write_heavy_business": false,
+    "strict_freshness": false,
+    "stale_allowed": true,
+    "stale_dangerous": false,
+    "prefer_speed": false,
+    "can_show_stale": true,
+    "partial_response_ok": false,
+    "queue_for_later": false,
+    "unstable_external": false,
+    "enrichment_needed": false,
+    "enrichment_intent": false,
+    "rest_enrichment": false,
+    "single_kafka_only": false,
+    "raw_enriched_allowed": false,
+    "source_lacks_kafka": false,
+    "enrichment_required": false,
+    "enrichment_critical": false,
+    "enrichment_consistency_unknown": false,
+    "event_owner_conflict": false,
+    "shared_topic_selective": false,
+    "new_topic_forbidden": false,
+    "business_situations": "{'multi_step_business_process'}"
+  },
+  "patterns": [
+    {
+      "id": "kafka",
+      "name": "Kafka/Event Streaming",
+      "score": 70,
+      "why": [
+        "События, replay, fan-out, highload."
+      ],
+      "controls": [
+        "schema registry",
+        "partition key",
+        "consumer groups",
+        "DLQ/retry topics",
+        "lag monitoring"
+      ],
+      "risks": [
+        "Нужны идемпотентные consumer-ы."
+      ]
+    },
+    {
+      "id": "inbox",
+      "name": "Inbox / Idempotent Consumer",
+      "score": 70,
+      "why": [
+        "Защита от дублей."
+      ],
+      "controls": [
+        "message registry",
+        "payload hash",
+        "unique keys",
+        "retention"
+      ],
+      "risks": [
+        "Нужен retention."
+      ]
+    },
+    {
+      "id": "read_model_business",
+      "name": "Business-driven Read Model",
+      "score": 70,
+      "why": [
+        "Из бизнес-контекста следует отдельный быстрый контур чтения/статусов."
+      ],
+      "controls": [
+        "projection table",
+        "last_updated",
+        "rebuild",
+        "read-your-writes rule",
+        "freshness marker"
+      ],
+      "risks": [
+        "Нужно явно объяснять пользователю свежесть данных."
+      ]
+    },
+    {
+      "id": "cache",
+      "name": "Cache / Fast Read Path",
+      "score": 68,
+      "why": [
+        "Частое чтение, допустимое устаревание и/или горячий клиентский экран."
+      ],
+      "controls": [
+        "TTL",
+        "invalidation",
+        "cache stampede protection",
+        "warmup",
+        "stale marker"
+      ],
+      "risks": [
+        "Не использовать кэш для финального финансового/юридического решения."
+      ]
+    },
+    {
+      "id": "fallback",
+      "name": "Fallback / Graceful Degradation",
+      "score": 60,
+      "why": [
+        "Бизнес допускает последний известный/частичный результат или есть нестабильные зависимости."
+      ],
+      "controls": [
+        "stale response policy",
+        "partial response",
+        "circuit breaker",
+        "degraded status",
+        "manual review"
+      ],
+      "risks": [
+        "Fallback должен быть явно виден пользователю/оператору."
+      ]
+    },
+    {
+      "id": "postgres",
+      "name": "PostgreSQL OLTP",
+      "score": 60,
+      "why": [
+        "Транзакционное хранилище."
+      ],
+      "controls": [
+        "constraints",
+        "indexes",
+        "migrations",
+        "backup",
+        "partitioning"
+      ],
+      "risks": [
+        "Не shared DB между сервисами."
+      ]
+    },
+    {
+      "id": "cqrs",
+      "name": "CQRS / Read Models",
+      "score": 55,
+      "why": [
+        "Разные модели чтения/записи, highload/fan-out."
+      ],
+      "controls": [
+        "projections",
+        "rebuild",
+        "eventual consistency"
+      ],
+      "risks": [
+        "Усложняет систему."
+      ]
+    },
+    {
+      "id": "gateway",
+      "name": "API Gateway / Edge",
+      "score": 45,
+      "why": [
+        "Единый вход, auth, rate limit, routing."
+      ],
+      "controls": [
+        "auth",
+        "rate limit",
+        "WAF",
+        "routing",
+        "request validation"
+      ],
+      "risks": [
+        "Gateway не должен содержать бизнес-логику."
+      ]
+    }
+  ],
+  "case_classes": [
+    {
+      "id": "non_invasive_extension",
+      "title": "Non-invasive extension of existing/source flow",
+      "score": 109,
+      "why": "Source/core flow нельзя менять; главный каркас должен быть read-only/CDC/file/adapter или честный compromise, а не invasive Saga/Outbox.",
+      "top_level": "Non-invasive Existing Process Extension",
+      "required_controls": [
+        "read_only_boundary",
+        "cdc_or_file_export",
+        "local_projection",
+        "reconciliation",
+        "residual_risk_adr"
+      ]
+    },
+    {
+      "id": "saga_orchestration",
+      "title": "Saga / long-running E2E process",
+      "score": 94,
+      "why": "Процесс состоит из нескольких систем/шагов; нужен владелец процесса, статусы, retry, compensation/manual recovery.",
+      "top_level": "Orchestrated E2E Process",
+      "required_controls": [
+        "process_state",
+        "step_statuses",
+        "timeouts",
+        "retry_dlq",
+        "compensation",
+        "manual_recovery"
+      ]
+    },
+    {
+      "id": "dwh_pipeline",
+      "title": "DWH / analytical pipeline",
+      "score": 58,
+      "why": "Отчётность и аналитика должны быть неблокирующим контуром с lineage, retention, watermark/offset и reconciliation; это не command/event idempotency case.",
+      "top_level": "Data Pipeline / DWH",
+      "required_controls": [
+        "cdc_or_etl",
+        "watermark_or_offset",
+        "lineage",
+        "quality_checks",
+        "retention",
+        "reconciliation"
+      ]
+    }
+  ],
+  "production_gate": {
+    "level": "GREEN",
+    "text": "Можно отдавать в разработку после обычного ревью и фиксации ADR.",
+    "blocking_gaps": [],
+    "required_before_dev": [
+      "Зафиксировать ADR, владельцев, SLA, error matrix и тесты."
+    ],
+    "required_before_prod": [
+      "SLO/alerts/runbook",
+      "load test",
+      "replay/recovery drill",
+      "contract tests",
+      "security review",
+      "rollback plan"
+    ]
+  },
+  "structured_result": {
+    "case_class": "non_invasive_extension",
+    "case_classes": [
+      {
+        "id": "non_invasive_extension",
+        "title": "Non-invasive extension of existing/source flow",
+        "score": 109,
+        "why": "Source/core flow нельзя менять; главный каркас должен быть read-only/CDC/file/adapter или честный compromise, а не invasive Saga/Outbox.",
+        "top_level": "Non-invasive Existing Process Extension",
+        "required_controls": [
+          "read_only_boundary",
+          "cdc_or_file_export",
+          "local_projection",
+          "reconciliation",
+          "residual_risk_adr"
+        ]
+      },
+      {
+        "id": "saga_orchestration",
+        "title": "Saga / long-running E2E process",
+        "score": 94,
+        "why": "Процесс состоит из нескольких систем/шагов; нужен владелец процесса, статусы, retry, compensation/manual recovery.",
+        "top_level": "Orchestrated E2E Process",
+        "required_controls": [
+          "process_state",
+          "step_statuses",
+          "timeouts",
+          "retry_dlq",
+          "compensation",
+          "manual_recovery"
+        ]
+      },
+      {
+        "id": "dwh_pipeline",
+        "title": "DWH / analytical pipeline",
+        "score": 58,
+        "why": "Отчётность и аналитика должны быть неблокирующим контуром с lineage, retention, watermark/offset и reconciliation; это не command/event idempotency case.",
+        "top_level": "Data Pipeline / DWH",
+        "required_controls": [
+          "cdc_or_etl",
+          "watermark_or_offset",
+          "lineage",
+          "quality_checks",
+          "retention",
+          "reconciliation"
+        ]
+      }
+    ],
+    "gate": {
+      "level": "GREEN",
+      "text": "Можно отдавать в разработку после обычного ревью и фиксации ADR.",
+      "blocking_gaps": [],
+      "required_before_dev": [
+        "Зафиксировать ADR, владельцев, SLA, error matrix и тесты."
+      ],
+      "required_before_prod": [
+        "SLO/alerts/runbook",
+        "load test",
+        "replay/recovery drill",
+        "contract tests",
+        "security review",
+        "rollback plan"
+      ]
+    },
+    "top_level_architecture": "Non-invasive Existing Process Extension",
+    "internal_layers": [
+      {
+        "name": "Top-level architecture",
+        "purpose": "Non-invasive Existing Process Extension",
+        "controls": [
+          "read_only_boundary",
+          "cdc_or_file_export",
+          "local_projection",
+          "reconciliation",
+          "residual_risk_adr"
+        ]
+      }
+    ],
+    "required_controls": [
+      "read_only_boundary",
+      "cdc_or_file_export",
+      "local_projection",
+      "reconciliation",
+      "residual_risk_adr",
+      "constraints",
+      "indexes",
+      "migrations",
+      "backup"
+    ],
+    "anti_patterns": [],
+    "mvp_scope": [
+      "Зафиксировать входной контракт и error model.",
+      "Добавить correlationId/requestId во все вызовы.",
+      "Сохранить операцию/заявку до внешних вызовов.",
+      "Настроить timeout и ограниченный retry с backoff.",
+      "Логировать технические и бизнес-ошибки без ПДн.",
+      "Минимальная state machine с финальными и ошибочными статусами.",
+      "Transactional Outbox для публикации критичных событий.",
+      "Inbox/deduplication для входящих событий/callback.",
+      "GET status + понятные статусы для клиента.",
+      "Non-blocking выгрузка в DWH; core-flow не ждёт отчётность."
+    ],
+    "production_scope": [
+      "Полная наблюдаемость: latency/error rate/availability, traces, stuck process age, DLQ/retry rate.",
+      "Runbook и manual recovery для зависших операций.",
+      "Contract/e2e/load/failover tests.",
+      "Security/privacy review: masking, service auth, secrets, retention.",
+      "Process Manager/Saga с таймерами, compensation, manual recovery dashboard.",
+      "Outbox publisher со stuck alerts, replay и мониторингом publish lag.",
+      "Retention, replay и DLQ для Inbox/consumers.",
+      "Topic strategy, partition key, schema registry, compatibility mode, retry topics/DLQ.",
+      "Status read model/cache с last_updated/freshness label и fallback stale-data только для чтения.",
+      "CDC/ETL со staging, data quality checks, reconciliation, lineage, backfill и late-events policy."
+    ],
+    "acceptance_criteria": [
+      "Happy path выполняется.",
+      "Повтор не создаёт дубль.",
+      "Каждый шаг имеет status, owner, timeout, retry/after_retry.",
+      "DWH/analytics не блокирует клиентский процесс.",
+      "Контракты версионируются и имеют compatibility policy.",
+      "API имеет версионирование, error model, rate limits, idempotency rules для POST/команд.",
+      "Логи не содержат чувствительные данные.",
+      "Метрики и алерты покрывают API, DB, broker, DLQ, outbox, stuck steps, lag, retry rate и external dependency health."
+    ],
+    "test_scenarios": [
+      "Unit tests бизнес-правил.",
+      "Integration tests DB/external clients.",
+      "Contract tests API/events/files.",
+      "E2E happy path and negative paths.",
+      "Load tests.",
+      "Stress tests.",
+      "Soak tests.",
+      "Failover tests.",
+      "DLQ/retry/replay tests.",
+      "Security tests.",
+      "Masking logs verification.",
+      "Audit trail verification."
+    ],
+    "adr": {
+      "title": "ADR-001: Интеграционный подход для Ультра: цепочка сервисов",
+      "context": [
+        "Бизнес-цель: Минимум данных: спроектировать цепочку сервисов, БД, события и восстановление ошибок.",
+        "Основная рекомендация: Неинвазивное расширение существующего процесса.",
+        "Готовность требований: 100%."
+      ],
+      "decision": [
+        "Использовать Неинвазивное расширение существующего процесса как главную архитектуру.",
+        "Частные паттерны оформлять как внутренние слои, а не как конкурирующие top-level решения.",
+        "Для критичных операций использовать idempotency, state tracking, audit и recovery."
+      ],
+      "alternatives": [
+        "Чистая синхронная REST-цепочка: отклонено/ограничено — Длинная/многоуровневая цепочка нестабильна, плохо восстанавливается и усиливает latency внешних систем.",
+        "DWH как часть core-flow: отклонено/ограничено — Отчётность не должна блокировать клиентский или финансовый процесс."
+      ],
+      "consequences": [
+        "Потребуется ownership процесса, контракты, тесты, SRE-метрики и runbook.",
+        "Решение должно пройти архитектурное ревью перед production."
+      ]
+    }
+  },
+  "variants": [
+    {
+      "name": "Non-invasive Existing Process Extension",
+      "pattern_ids": [
+        "postgres"
+      ],
+      "patterns": [
+        "PostgreSQL OLTP"
+      ],
+      "score": 100,
+      "raw_score": 140,
+      "why": [
+        "Production/source flow менять нельзя, поэтому допустимы read-only/CDC/file/adapter подходы или явно рискованный export/snapshot compromise.",
+        "Выбранный класс кейса требует именно этот top-level каркас: Non-invasive extension of existing/source flow"
+      ],
+      "complexity": "Средняя",
+      "latency": "batch/near-real-time",
+      "reliability": "Средняя/высокая",
+      "risks": [
+        "Нельзя гарантировать атомарную связь бизнес-изменения и публикации события из read-only канала; нужен ADR с residual risk."
+      ],
+      "blocked": false,
+      "_priority": 245,
+      "case_class_role": "candidate_top_level",
+      "case_class_reason": "Source/core flow нельзя менять; главный каркас должен быть read-only/CDC/file/adapter или честный compromise, а не invasive Saga/Outbox."
+    },
+    {
+      "name": "Data Pipeline / DWH",
+      "pattern_ids": [
+        "postgres"
+      ],
+      "patterns": [
+        "PostgreSQL OLTP"
+      ],
+      "score": 68,
+      "raw_score": 118,
+      "why": [
+        "Аналитика, регуляторная отчётность или near-real-time DWH/offload; главный смысл — retention, watermark/offset, lineage, quality checks и reconciliation, а не просто transport batch/file."
+      ],
+      "complexity": "Средняя",
+      "latency": "Batch/near-real-time",
+      "reliability": "Высокая для аналитики",
+      "risks": [
+        "Нужны reconciliation, lineage, data quality, retention/archive и backfill.",
+        "DWH/ETL — это слой data/reporting, он не должен подменять core-flow.",
+        "Это полезный внутренний слой, но не главный архитектурный каркас для класса кейса non_invasive_extension."
+      ],
+      "blocked": false,
+      "_priority": -220,
+      "case_class_role": "supporting_layer_or_alternative",
+      "case_class_reason": "Source/core flow нельзя менять; главный каркас должен быть read-only/CDC/file/adapter или честный compromise, а не invasive Saga/Outbox."
+    }
+  ],
+  "recommended": {
+    "name": "Non-invasive Existing Process Extension",
+    "pattern_ids": [
+      "postgres"
+    ],
+    "patterns": [
+      "PostgreSQL OLTP"
+    ],
+    "score": 100,
+    "raw_score": 140,
+    "why": [
+      "Production/source flow менять нельзя, поэтому допустимы read-only/CDC/file/adapter подходы или явно рискованный export/snapshot compromise.",
+      "Выбранный класс кейса требует именно этот top-level каркас: Non-invasive extension of existing/source flow"
+    ],
+    "complexity": "Средняя",
+    "latency": "batch/near-real-time",
+    "reliability": "Средняя/высокая",
+    "risks": [
+      "Нельзя гарантировать атомарную связь бизнес-изменения и публикации события из read-only канала; нужен ADR с residual risk."
+    ],
+    "blocked": false,
+    "_priority": 245,
+    "case_class_role": "candidate_top_level",
+    "case_class_reason": "Source/core flow нельзя менять; главный каркас должен быть read-only/CDC/file/adapter или честный compromise, а не invasive Saga/Outbox."
+  },
+  "anti_patterns": [],
+  "db": {
+    "storage": [
+      "PostgreSQL OLTP",
+      "DWH/Data Lake",
+      "Archive/Object storage for cold data"
+    ],
+    "tables": [
+      {
+        "name": "application",
+        "purpose": "Локальная read/projection copy, не меняет source system",
+        "fields": [
+          [
+            "id",
+            "uuid primary key"
+          ],
+          [
+            "status",
+            "text not null"
+          ],
+          [
+            "version",
+            "integer not null default 1"
+          ],
+          [
+            "correlation_id",
+            "text"
+          ],
+          [
+            "created_at",
+            "timestamp not null default now()"
+          ],
+          [
+            "updated_at",
+            "timestamp not null default now()"
+          ],
+          [
+            "archived_at",
+            "timestamp"
+          ]
+        ],
+        "indexes": [
+          "(status)",
+          "(created_at)",
+          "(correlation_id)",
+          "(correlation_id)"
+        ]
+      },
+      {
+        "name": "application_status_history",
+        "purpose": "История статусов",
+        "fields": [
+          [
+            "id",
+            "uuid primary key"
+          ],
+          [
+            "application_id",
+            "uuid not null"
+          ],
+          [
+            "old_status",
+            "text"
+          ],
+          [
+            "new_status",
+            "text not null"
+          ],
+          [
+            "reason",
+            "text"
+          ],
+          [
+            "changed_by",
+            "text"
+          ],
+          [
+            "changed_at",
+            "timestamp not null default now()"
+          ]
+        ],
+        "indexes": [
+          "(application_id, changed_at)",
+          "(new_status, changed_at)"
+        ]
+      },
+      {
+        "name": "audit_log",
+        "purpose": "Аудит и security-события",
+        "fields": [
+          [
+            "id",
+            "uuid primary key"
+          ],
+          [
+            "correlation_id",
+            "text"
+          ],
+          [
+            "actor",
+            "text"
+          ],
+          [
+            "action",
+            "text not null"
+          ],
+          [
+            "entity_type",
+            "text"
+          ],
+          [
+            "entity_id",
+            "text"
+          ],
+          [
+            "result",
+            "text"
+          ],
+          [
+            "metadata",
+            "jsonb"
+          ],
+          [
+            "created_at",
+            "timestamp not null default now()"
+          ]
+        ],
+        "indexes": [
+          "(correlation_id)",
+          "(entity_type, entity_id)",
+          "(created_at)"
+        ]
+      },
+      {
+        "name": "reconciliation_runs",
+        "purpose": "Сверка batch/CDC/DWH загрузок",
+        "fields": [
+          [
+            "id",
+            "uuid primary key"
+          ],
+          [
+            "source_name",
+            "text not null"
+          ],
+          [
+            "target_name",
+            "text not null"
+          ],
+          [
+            "load_id",
+            "text"
+          ],
+          [
+            "records_source",
+            "integer"
+          ],
+          [
+            "records_target",
+            "integer"
+          ],
+          [
+            "checksum_source",
+            "text"
+          ],
+          [
+            "checksum_target",
+            "text"
+          ],
+          [
+            "status",
+            "text not null"
+          ],
+          [
+            "created_at",
+            "timestamp not null default now()"
+          ]
+        ],
+        "indexes": [
+          "(source_name,target_name,created_at)",
+          "(status)"
+        ]
+      }
+    ],
+    "ddl": "-- Draft SQL DDL. Требует DBA/security review.\n-- Статусы: NEW, PROCESSING, SUCCESS, FAILED\n\n-- Локальная read/projection copy, не меняет source system\ncreate table application (\n    id uuid primary key,\n    status text not null,\n    version integer not null default 1,\n    correlation_id text,\n    created_at timestamp not null default now(),\n    updated_at timestamp not null default now(),\n    archived_at timestamp\n);\ncreate index idx_application_1 on application(status);\ncreate index idx_application_2 on application(created_at);\ncreate index idx_application_3 on application(correlation_id);\ncreate index idx_application_4 on application(correlation_id);\n\n-- История статусов\ncreate table application_status_history (\n    id uuid primary key,\n    application_id uuid not null,\n    old_status text,\n    new_status text not null,\n    reason text,\n    changed_by text,\n    changed_at timestamp not null default now()\n);\ncreate index idx_application_status_history_1 on application_status_history(application_id, changed_at);\ncreate index idx_application_status_history_2 on application_status_history(new_status, changed_at);\n\n-- Аудит и security-события\ncreate table audit_log (\n    id uuid primary key,\n    correlation_id text,\n    actor text,\n    action text not null,\n    entity_type text,\n    entity_id text,\n    result text,\n    metadata jsonb,\n    created_at timestamp not null default now()\n);\ncreate index idx_audit_log_1 on audit_log(correlation_id);\ncreate index idx_audit_log_2 on audit_log(entity_type, entity_id);\ncreate index idx_audit_log_3 on audit_log(created_at);\n\n-- Сверка batch/CDC/DWH загрузок\ncreate table reconciliation_runs (\n    id uuid primary key,\n    source_name text not null,\n    target_name text not null,\n    load_id text,\n    records_source integer,\n    records_target integer,\n    checksum_source text,\n    checksum_target text,\n    status text not null,\n    created_at timestamp not null default now()\n);\ncreate index idx_reconciliation_runs_1 on reconciliation_runs(source_name,target_name,created_at);\ncreate index idx_reconciliation_runs_2 on reconciliation_runs(status);\n",
+    "partitioning": [
+      "Consider monthly partitions for audit/history/integration_attempts.",
+      "Prepare archive jobs before production."
+    ],
+    "retention": [
+      "Retention: 3_years.",
+      "Outbox/inbox/integration_attempts имеют отдельный retention.",
+      "Audit/security срок согласовать с ИБ/юристами."
+    ],
+    "target_only": true
+  },
+  "contracts": {
+    "api": [],
+    "events": [],
+    "queue": [],
+    "selective_consumer": [],
+    "enrichment": [],
+    "files": [],
+    "cdc": [],
+    "dwh": [
+      "Staging with load_id/batch_id/snapshot_id",
+      "Watermark/offset policy for incremental load",
+      "Data quality: record count, checksum, required fields, referential checks",
+      "Reconciliation report",
+      "Late arriving data and backfill policy",
+      "Retention/archive policy for prod offload and DWH storage growth",
+      "PII minimization/masking for analytics"
+    ],
+    "soap": [],
+    "security": [
+      "Auth scopes/roles per endpoint/topic/file/feed",
+      "Sensitive fields masked in logs",
+      "mTLS/TLS for service channels",
+      "Audit event for access/change"
+    ],
+    "privacy": [],
+    "decision": []
+  },
+  "scenarios": {
+    "main": [
+      "Инициатор отправляет команду или событие старта.",
+      "API Gateway сохраняет состояние Application.",
+      "Шаг 1: Принять команду → API Gateway через rest (blocking).",
+      "  Шаг 2: Зафиксировать процесс → Core Service через db (blocking).",
+      "    Шаг 3: Передать событие → Core Service через kafka (non_blocking).",
+      "      Шаг 4: Обработать результат → Target Service через kafka/db (non_blocking).",
+      "Финальный статус фиксируется в entity/status_history/audit_log."
+    ],
+    "alternatives": {
+      "timeout": [
+        "Где: downstream",
+        "Блокирует: blocking",
+        "Retry: yes",
+        "После retry: retry/DLQ/manual",
+        "Owner: owner"
+      ]
+    },
+    "error_path": [
+      "Техническая ошибка фиксируется в integration_attempts/event_enrichment_attempts.",
+      "Если retry=yes — выполняется retry with exponential backoff + jitter.",
+      "При ошибке REST enrichment исходное изменение не откатывается; outbox остаётся в NEW/ENRICHING/FAILED до retry или ручного reprocess.",
+      "После исчерпания retry сообщение уходит в DLQ/FAILED или создаётся manual_recovery_task.",
+      "Алерт уходит владельцу шага и дежурной команде."
+    ],
+    "compensation_path": []
+  },
+  "diagrams": {
+    "component": "flowchart LR\nI[Initiator]\nS[API Gateway]\nI --> S\nS --> DB[(Primary DB)]\nS --> T1[API Gateway]\nS --> T2[Core Service]\nS --> T3[Target Service]\nS --> OBS[(Logs/Metrics/Traces/Audit)]",
+    "happy": "sequenceDiagram\nparticipant I as Initiator\nparticipant S as API Gateway\nparticipant DB as Primary DB\nparticipant T1 as API Gateway\nparticipant T2 as Core Service\nparticipant T3 as Target Service\nI->>S: command/request\nS->>S: auth + validation + idempotency\nS->>DB: save entity/status\nDB-->>S: commit ok\nS-->>I: trackingId/status/result",
+    "error": "sequenceDiagram\nparticipant W as Worker/PM\nparticipant T as Target System\nparticipant DB as DB\nparticipant DLQ as DLQ/Manual Recovery\nW->>T: call step\nT--xW: timeout/5xx\nW->>DB: save failed attempt\nW->>W: retry with backoff\nW->>DLQ: after retry exhausted\nDLQ-->>W: manual/replay decision",
+    "compensation": "sequenceDiagram\nparticipant PM as Process Manager\nparticipant S1 as Successful Step\nparticipant C as Compensation\nparticipant M as Manual Task\nPM->>PM: detect failed blocking step\nPM->>C: run compensation for completed steps\nC-->>PM: compensation result\nalt compensation failed\nPM->>M: create manual recovery task\nend"
+  },
+  "lifecycle": {
+    "backlog": [
+      "Утвердить owner процесса и систем.",
+      "Утвердить source of truth и владение полями.",
+      "Утвердить статусную модель и финальные статусы.",
+      "Согласовать API/event/file/CDC/DWH contracts.",
+      "API lifecycle: versioning, backward compatibility, deprecation policy, pagination/filtering/sorting, rate limits, unified error model.",
+      "Data governance: schema versioning, compatibility mode, late/out-of-order/deleted events, lineage, quality checks, reprocessing window.",
+      "Capacity plan: RPS/TPS, payload size, partitions/consumers/workers, DB pool/indexes, retention, write amplification.",
+      "SRE/SLI: latency, error rate, availability, consumer lag, DLQ size, retry rate, stuck process age, external dependency health.",
+      "Security/privacy: masking logs, RBAC/service auth, secrets, retention, minimization, encryption where needed.",
+      "Реализовать миграции БД и индексы.",
+      "Добавить correlationId/requestId во все каналы.",
+      "Настроить logs/metrics/traces/audit.",
+      "Подготовить integration/contract/e2e tests.",
+      "Зафиксировать ADR trade-off: почему целевой вариант невозможен сейчас, какой риск принимаем, кто owner риска, когда пересматриваем.",
+      "Разделить delivery на Safe MVP и Phase 2 hardening; запретить “временные” решения без даты пересмотра."
+    ],
+    "tests": [
+      "Unit tests бизнес-правил.",
+      "Integration tests DB/external clients.",
+      "Contract tests API/events/files.",
+      "E2E happy path and negative paths.",
+      "Load tests.",
+      "Stress tests.",
+      "Soak tests.",
+      "Failover tests.",
+      "DLQ/retry/replay tests.",
+      "Security tests.",
+      "Masking logs verification.",
+      "Audit trail verification."
+    ],
+    "rollout": [
+      "Phase 1: contracts + DB + observability.",
+      "Phase 2: async/outbox/inbox.",
+      "Phase 3: consumers/DWH.",
+      "Phase 4: production readiness review."
+    ],
+    "adr": [
+      {
+        "title": "ADR-001: Non-invasive Existing Process Extension",
+        "decision": "Использовать Неинвазивное расширение существующего процесса.",
+        "consequences": "Требуются владельцы, контракты, monitoring и recovery."
+      },
+      {
+        "title": "ADR-002: Source of truth",
+        "decision": "Source of truth: own_db; direct DB write запрещён.",
+        "consequences": "Изменения только через согласованный доменный контракт."
+      },
+      {
+        "title": "ADR-003: Failure policy",
+        "decision": "Failure policy: retry.",
+        "consequences": "Каждый шаг должен иметь retry/compensation/manual recovery."
+      }
+    ],
+    "acceptance": [
+      "Happy path выполняется.",
+      "Повтор не создаёт дубль.",
+      "Каждый шаг имеет status, owner, timeout, retry/after_retry.",
+      "DWH/analytics не блокирует клиентский процесс.",
+      "Контракты версионируются и имеют compatibility policy.",
+      "API имеет версионирование, error model, rate limits, idempotency rules для POST/команд.",
+      "Логи не содержат чувствительные данные.",
+      "Метрики и алерты покрывают API, DB, broker, DLQ, outbox, stuck steps, lag, retry rate и external dependency health."
+    ]
+  },
+  "readiness": {
+    "score": 100,
+    "confidence": 100,
+    "confidence_level": "high",
+    "gaps": []
+  },
+  "composite_architecture": {
+    "summary": "Целевая архитектура должна рассматриваться как композиция слоёв, а не как один паттерн.",
+    "layers": [
+      {
+        "layer": "1. Входной контур",
+        "decision": "Принять команду/запрос безопасно и быстро",
+        "components": [
+          "Service API",
+          "Idempotency validation",
+          "Request validation"
+        ],
+        "controls": [
+          "Auth/RBAC",
+          "rate limit",
+          "correlationId",
+          "единая error model"
+        ],
+        "risks": []
+      },
+      {
+        "layer": "2. Core process",
+        "decision": "Управляемая state machine/Saga для многошаговой цепочки",
+        "components": [
+          "Process Manager",
+          "process_steps",
+          "status_history"
+        ],
+        "controls": [
+          "timeout per step",
+          "retry policy",
+          "compensation",
+          "manual recovery"
+        ],
+        "risks": [
+          "Без owner процесса Saga превратится в distributed mess."
+        ]
+      },
+      {
+        "layer": "5. Read path",
+        "decision": "Отдельный быстрый контур чтения/статуса",
+        "components": [
+          "Read model/projection",
+          "Cache where allowed",
+          "GET status API"
+        ],
+        "controls": [
+          "last_updated",
+          "freshness label",
+          "read-your-writes rule",
+          "TTL/invalidation/cache stampede protection"
+        ],
+        "risks": []
+      },
+      {
+        "layer": "6. Data/DWH",
+        "decision": "Аналитика и отчётность не блокируют core/client flow",
+        "components": [
+          "CDC/ETL",
+          "staging",
+          "DWH/Data Lake"
+        ],
+        "controls": [
+          "lineage",
+          "quality checks",
+          "reconciliation",
+          "backfill/replay",
+          "late events policy"
+        ],
+        "risks": []
+      },
+      {
+        "layer": "7. Security/privacy",
+        "decision": "Защита данных встроена в интеграцию",
+        "components": [
+          "AuthN/AuthZ",
+          "audit log",
+          "secrets management"
+        ],
+        "controls": [
+          "TLS/mTLS",
+          "masking logs",
+          "field minimization",
+          "encryption where needed",
+          "retention"
+        ],
+        "risks": []
+      },
+      {
+        "layer": "8. Observability/SRE",
+        "decision": "Эксплуатационная готовность",
+        "components": [
+          "logs",
+          "metrics",
+          "traces",
+          "business dashboard"
+        ],
+        "controls": [
+          "latency/error rate/availability SLI",
+          "DLQ size",
+          "retry rate",
+          "consumer lag",
+          "stuck process age",
+          "external dependency health"
+        ],
+        "risks": []
+      }
+    ],
+    "cross_cutting": [
+      "API lifecycle: versioning, backward compatibility, deprecation policy, pagination/filtering/sorting where needed, rate limits, unified error model.",
+      "Data contracts: schema versioning, compatibility mode, deleted/late/out-of-order events, reprocessing window.",
+      "Capacity planning: RPS/TPS, payload size, partitions/consumers/workers, DB pool/indexes, retention, write amplification."
+    ]
+  },
+  "advanced": {
+    "quality_gate": {
+      "status": "ready",
+      "text": "Данных достаточно для предварительного ADR и обсуждения с архитектором.",
+      "gaps": [],
+      "critical_questions": [
+        "Какая допустимая задержка DWH, как делаем reconciliation, backfill, lineage и data quality?",
+        "Какой ключ порядка, sequence/version, и что делать со старыми/out-of-order событиями?",
+        "Какие поля являются ПДн/секретами, где маскирование, шифрование, retention и аудит доступа?",
+        "Какие ограничения являются жёсткими, а какие можно пересогласовать: новый сервис, новая инфраструктура, изменение source, сроки, бюджет?",
+        "Какой остаточный риск бизнес готов принять временно, и какой deadline для перехода к целевому варианту?",
+        "Что является главным результатом: команда/операция, событие, read-model, batch file, webhook intake, DWH pipeline или migration?"
+      ]
+    },
+    "tradeoffs": {
+      "constraints": [
+        "Source-систему нельзя менять: outbox/state-machine в source недоступны без пересогласования.",
+        "Пояснение пользователя: Например: новый сервис слишком дорогой; source менять нельзя; Kafka уже есть только в другом контуре; сроки 2 недели; нужен безопасный минимум."
+      ],
+      "non_negotiable": [
+        "correlationId/requestId во всех каналах",
+        "timeouts на sync/REST вызовах",
+        "owner и alert для каждой ошибки",
+        "идемпотентность при retry/async",
+        "логирование без ПДн/секретов",
+        "schema/versioning события",
+        "DLQ/retry/reprocess policy для broker/consumer"
+      ],
+      "feasible_v1": [
+        "Ограничения не блокируют целевое решение; можно идти по production-ready варианту поэтапно."
+      ],
+      "target": [
+        "Целевой вариант: архитектура без искусственных ограничений — отдельные границы ответственности, outbox/inbox, dedicated publisher/orchestrator при необходимости, полная observability."
+      ],
+      "residual_risks": [
+        "Остаточный риск низкий/средний при выполнении non-negotiable controls и тестов."
+      ],
+      "phase2": [
+        "После MVP провести production readiness review и решить, нужен ли вынос в отдельный сервис/инфраструктуру."
+      ]
+    },
+    "compromise_matrix": [
+      {
+        "option": "A. Архитектурно правильный вариант",
+        "when": "Когда можно менять нужные компоненты и есть бюджет на production controls.",
+        "decision": [
+          "Использовать целевой top-level паттерн: Неинвазивное расширение существующего процесса.",
+          "Разделить ownership: source of truth, technical publisher/adapter, consumer/target, operations owner.",
+          "Сразу заложить production controls: Outbox/Inbox или эквивалент, DLQ/quarantine, replay, observability, contract tests."
+        ],
+        "risk": "Ниже, но дороже/дольше."
+      },
+      {
+        "option": "B. Безопасный компромисс",
+        "when": "Когда стек/сроки/бюджет ограничены.",
+        "decision": [
+          "Оставить существующие ограничения стека/бюджета, но добавить минимально безопасные контроли: correlationId, idempotency/replay where retries exist, timeouts + retry limits, owner + alert, monitoring + runbook, ADR with accepted residual risk.",
+          "Не переименовывать компромисс в “идеальную архитектуру”: явно указать residual risk и дату пересмотра."
+        ],
+        "risk": "Средний; допустим только с ADR, monitoring и планом phase 2."
+      },
+      {
+        "option": "C. Временный workaround",
+        "when": "Только для короткого периода или emergency.",
+        "decision": [
+          "Допустим только как временный workaround: manual/reconciliation path, ограниченный scope, feature flag/kill switch, ежедневный контроль расхождений.",
+          "Запрещено скрывать отсутствие ключевых гарантий: если нет atomics/replay/idempotency — это должно быть blocker или accepted risk."
+        ],
+        "risk": "Высокий; нужен срок жизни, owner, rollback и ручная сверка."
+      }
+    ],
+    "mvp": [
+      "Зафиксировать входной контракт и error model.",
+      "Добавить correlationId/requestId во все вызовы.",
+      "Сохранить операцию/заявку до внешних вызовов.",
+      "Настроить timeout и ограниченный retry с backoff.",
+      "Логировать технические и бизнес-ошибки без ПДн.",
+      "Минимальная state machine с финальными и ошибочными статусами.",
+      "Transactional Outbox для публикации критичных событий.",
+      "Inbox/deduplication для входящих событий/callback.",
+      "GET status + понятные статусы для клиента.",
+      "Non-blocking выгрузка в DWH; core-flow не ждёт отчётность."
+    ],
+    "production": [
+      "Полная наблюдаемость: latency/error rate/availability, traces, stuck process age, DLQ/retry rate.",
+      "Runbook и manual recovery для зависших операций.",
+      "Contract/e2e/load/failover tests.",
+      "Security/privacy review: masking, service auth, secrets, retention.",
+      "Process Manager/Saga с таймерами, compensation, manual recovery dashboard.",
+      "Outbox publisher со stuck alerts, replay и мониторингом publish lag.",
+      "Retention, replay и DLQ для Inbox/consumers.",
+      "Topic strategy, partition key, schema registry, compatibility mode, retry topics/DLQ.",
+      "Status read model/cache с last_updated/freshness label и fallback stale-data только для чтения.",
+      "CDC/ETL со staging, data quality checks, reconciliation, lineage, backfill и late-events policy."
+    ],
+    "rejected_alternatives": [
+      {
+        "name": "Чистая синхронная REST-цепочка",
+        "why": "Длинная/многоуровневая цепочка нестабильна, плохо восстанавливается и усиливает latency внешних систем."
+      },
+      {
+        "name": "DWH как часть core-flow",
+        "why": "Отчётность не должна блокировать клиентский или финансовый процесс."
+      }
+    ],
+    "capacity": {
+      "peak_rps": 100,
+      "payload_kb": 5,
+      "traffic_mbps": 0.49,
+      "daily_gb": 20.6,
+      "retention_days": 30,
+      "lag_seconds": 60,
+      "recommended_partitions": 6,
+      "recommended_partitions_range": "6–12",
+      "notes": [
+        "Это не sizing, а стартовая гипотеза для нагрузочного теста; финальное число partitions/workers считается по latency, consumer lag, DB write amplification, лимитам downstream и storage.",
+        "Partition key должен совпадать с aggregate/entity id, иначе порядок статусов не гарантируется.",
+        "Для DWH считать batch window, late events, backfill throughput и reconciliation window."
+      ]
+    },
+    "extra_diagrams": {
+      "context": "flowchart LR\n  User[User/Initiator] --> API[API / Entry Point]\n  API --> PM[Process Manager / State Machine]\n  PM --> S0[API Gateway]\n  PM --> S1[Core Service]\n  PM -. async/non-blocking .-> S2[Target Service]\n  PM -. CDC/ETL non-blocking .-> DWH[DWH / Reporting]\n  PM --> Status[Status Read Model]\n  Status --> User",
+      "event_flow": "sequenceDiagram\n  participant Core as Core/Process Manager\n  participant Outbox as Outbox\n  participant Broker as Broker/Queue\n  participant Consumer as Consumer/Inbox\n  participant DLQ as DLQ\n  Core->>Outbox: save event in same transaction\n  Outbox->>Broker: publish event\n  Broker->>Consumer: deliver event\n  Consumer->>Consumer: dedupe/idempotency check\n  alt processing failed\n    Consumer->>DLQ: move poison message\n  else success\n    Consumer-->>Broker: ack\n  end",
+      "data_flow": "flowchart TD\n  Source[(Source of Truth)] --> Core[(Operational DB)]\n  Core --> Audit[(Audit/Status History)]\n  Core --> Projection[(Read Model)]\n  Projection --> Cache[(Cache)]\n  Cache --> UI[Client/UI]\n  Core -. CDC/ETL .-> Staging[(DWH Staging)]\n  Staging --> Quality[Quality Checks]\n  Quality --> DWH[(DWH/Data Mart)]",
+      "failure_flow": "sequenceDiagram\n  participant Caller\n  participant API\n  participant Core\n  participant External\n  participant Ops as Manual Recovery\n  Caller->>API: request with correlationId/idempotencyKey\n  API->>Core: persist operation + status\n  Core->>External: call with timeout\n  alt timeout/error\n    Core->>Core: retry with backoff\n    Core->>Ops: create manual task if retries exhausted\n    Core-->>Caller: trackingId + status PROCESSING/ERROR\n  else success\n    Core-->>Caller: result/status\n  end"
+    },
+    "current_vs_target": [
+      "Добавить Transactional Outbox.",
+      "Добавить Inbox/idempotency.",
+      "Добавить DLQ.",
+      "Добавить Broker/event stream."
+    ],
+    "impact_analysis": [
+      "Специальный impact-analysis не требуется по выбранным формам; достаточно обычных contract/error/rollout checks."
+    ],
+    "adr": {
+      "title": "ADR-001: Интеграционный подход для Ультра: цепочка сервисов",
+      "context": [
+        "Бизнес-цель: Минимум данных: спроектировать цепочку сервисов, БД, события и восстановление ошибок.",
+        "Основная рекомендация: Неинвазивное расширение существующего процесса.",
+        "Готовность требований: 100%."
+      ],
+      "decision": [
+        "Использовать Неинвазивное расширение существующего процесса как главную архитектуру.",
+        "Частные паттерны оформлять как внутренние слои, а не как конкурирующие top-level решения.",
+        "Для критичных операций использовать idempotency, state tracking, audit и recovery."
+      ],
+      "alternatives": [
+        "Чистая синхронная REST-цепочка: отклонено/ограничено — Длинная/многоуровневая цепочка нестабильна, плохо восстанавливается и усиливает latency внешних систем.",
+        "DWH как часть core-flow: отклонено/ограничено — Отчётность не должна блокировать клиентский или финансовый процесс."
+      ],
+      "consequences": [
+        "Потребуется ownership процесса, контракты, тесты, SRE-метрики и runbook.",
+        "Решение должно пройти архитектурное ревью перед production."
+      ]
+    },
+    "stakeholder_reports": {
+      "selected_analyst": [
+        "Описать статусы, error matrix, source of truth, контракты, owner/SLA, retry/replay и acceptance criteria.",
+        "Проверить открытые вопросы из quality gate до передачи в разработку."
+      ]
+    },
+    "templates": [
+      "REST request-response integration",
+      "REST + external API adapter",
+      "Kafka event publication with Outbox",
+      "Kafka consumer + Postgres idempotent sink",
+      "Shared topic selective consumer",
+      "Webhook intake + Inbox",
+      "Batch/File/SFTP exchange",
+      "SFTP reconciliation",
+      "Saga orchestration / process manager",
+      "BFF/API Composition / Customer 360",
+      "Status screen with cache/read model",
+      "DWH offloading and retention",
+      "CDC replication",
+      "Legacy strangler migration",
+      "Reference/master-data synchronization",
+      "Regulatory data model change",
+      "Current solution review / audit",
+      "Queue-based async worker",
+      "Near real-time decision flow"
+    ]
+  }
+}

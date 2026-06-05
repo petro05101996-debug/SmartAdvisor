@@ -1,0 +1,1301 @@
+{
+  "ctx": {
+    "fields": [
+      {
+        "name": "event_id",
+        "original": "eventId",
+        "type": "uuid",
+        "required": true,
+        "unique": true,
+        "indexed": false,
+        "sensitive": false
+      },
+      {
+        "name": "contract_id",
+        "original": "contractId",
+        "type": "uuid",
+        "required": true,
+        "unique": false,
+        "indexed": true,
+        "sensitive": false
+      },
+      {
+        "name": "event_type",
+        "original": "eventType",
+        "type": "text",
+        "required": true,
+        "unique": false,
+        "indexed": false,
+        "sensitive": false
+      },
+      {
+        "name": "updated_at",
+        "original": "updatedAt",
+        "type": "timestamp",
+        "required": true,
+        "unique": false,
+        "indexed": false,
+        "sensitive": false
+      }
+    ],
+    "systems": [
+      {
+        "name": "Contract Service",
+        "role": "source",
+        "owner": "Contract Team",
+        "criticality": "critical",
+        "channel": "Kafka",
+        "blocking": "async",
+        "sla": "60s"
+      },
+      {
+        "name": "Analytics DB",
+        "role": "sink",
+        "owner": "Data Team",
+        "criticality": "important",
+        "channel": "SQL",
+        "blocking": "async",
+        "sla": "60s"
+      }
+    ],
+    "steps": [
+      {
+        "level": "1",
+        "order": "1",
+        "parent": "root",
+        "step": "Read shared topic",
+        "system": "Consumer",
+        "channel": "Kafka",
+        "input": "event",
+        "output": "filtered event",
+        "timeout": "60s",
+        "retry": "yes",
+        "compensation": "retry",
+        "blocking": "non_blocking",
+        "owner": "Integration Team"
+      },
+      {
+        "level": "1",
+        "order": "2",
+        "parent": "1",
+        "step": "Write accepted event",
+        "system": "Consumer",
+        "channel": "SQL",
+        "input": "filtered event",
+        "output": "row",
+        "timeout": "5s",
+        "retry": "yes",
+        "compensation": "dlq/manual",
+        "blocking": "non_blocking",
+        "owner": "Integration Team"
+      }
+    ],
+    "errors": [
+      {
+        "error": "poison_message",
+        "where": "Consumer",
+        "blocking": "non_blocking",
+        "retry": "yes",
+        "after_retry": "DLQ",
+        "owner": "Integration Team"
+      }
+    ],
+    "target_integrations": [],
+    "process_flow": [],
+    "contracts_declared": [],
+    "business_rules": [],
+    "capacity_declared": [],
+    "observability_declared": [],
+    "rollout_declared": [],
+    "data_quality_lineage": [],
+    "statuses": [],
+    "final_statuses": [],
+    "business": {
+      "active_scenarios": [
+        "data_synchronization",
+        "highload_write_stream",
+        "peak_load_process",
+        "shared_topic_selective_consumer"
+      ],
+      "derived_requirements": [
+        "Поток событий/highload-запись требует буферизации, партиционирования, backpressure, DLQ/retry topic и мониторинга lag.",
+        "Общий Kafka topic с малой долей нужных событий — это selective consumption, а не outbox-кейс: надо считать filtered ratio, lag, poll/fetch, commit policy и нагрузку на БД.",
+        "Если отдельный topic/source-change запрещены, фильтрация на стороне consumer допустима как компромисс при capacity plan и мониторинге lag.",
+        "Синхронизация данных требует явного source of truth, версии записи, delta/snapshot sync и reconciliation.",
+        "Пиковую нагрузку нужно сглаживать через rate limit/backpressure/queue/cache prewarm/autoscaling."
+      ],
+      "recommended_controls": [
+        "Commit offset только после успешной обработки нужных событий; ненужные события можно пропускать без записи, но метриками считать filtered/accepted ratio.",
+        "Для accepted-событий обязательны идемпотентная запись в sink, DLQ/quarantine для poison events и replay/reprocess policy."
+      ],
+      "pattern_boosts": [
+        "cdc",
+        "etl",
+        "inbox",
+        "kafka",
+        "queue",
+        "scaling"
+      ],
+      "conflicts": [],
+      "questions": [
+        "Какой максимальный допустимый возраст данных на клиентском экране?",
+        "Что хуже для бизнеса: медленный ответ или слегка устаревший результат?",
+        "Можно ли показать частичный/последний известный результат при сбое источника?"
+      ]
+    },
+    "input_quality": {
+      "blocked": false,
+      "hard_gaps": [],
+      "soft_gaps": [
+        "Не определён source of truth.",
+        "Не определено владение данными."
+      ],
+      "score": 84
+    },
+    "case_classes": [
+      {
+        "id": "shared_topic_selective_consumer",
+        "title": "Shared Kafka topic / selective consumer",
+        "score": 101,
+        "why": "Нужна выборочная обработка общего topic при запрете отдельного topic/source-change; главный каркас — consumer filtering + capacity/backpressure + idempotent sink, а не publisher/outbox.",
+        "top_level": "Shared Topic Selective Consumer + Idempotent Sink",
+        "required_controls": [
+          "filter_ratio",
+          "consumer_lag",
+          "partition_strategy",
+          "idempotent_sink",
+          "offset_after_processing",
+          "dlq_quarantine",
+          "batch_write",
+          "replay_plan"
+        ]
+      },
+      {
+        "id": "dual_write_db_broker",
+        "title": "DB + broker dual-write",
+        "score": 93,
+        "why": "Нужно атомарно связать изменение бизнес-сущности и публикацию события в Kafka/очередь.",
+        "top_level": "Event-driven + Transactional Outbox",
+        "required_controls": [
+          "outbox",
+          "publisher",
+          "idempotent_consumer",
+          "dlq",
+          "replay",
+          "lag_monitoring"
+        ]
+      }
+    ]
+  },
+  "traits": {
+    "operation_kind": "kafka_event_consumer",
+    "reliability_key": "event_id + aggregate_id/version + consumer Inbox/idempotent sink",
+    "highload_stream_ingestion": false,
+    "active_active_financial_write": false,
+    "multi_tenant_noisy_neighbor": false,
+    "highload": true,
+    "lowload": false,
+    "bursty": true,
+    "rps": 1200,
+    "peak": 5,
+    "existing": true,
+    "no_changes": true,
+    "can_change_core": false,
+    "can_add_outbox": false,
+    "can_add_event": false,
+    "can_add_cdc": false,
+    "compromise_mode": true,
+    "new_service_forbidden": false,
+    "new_infra_forbidden": false,
+    "source_minimal_only": false,
+    "source_read_only": true,
+    "source_can_add_minimal_outbox": false,
+    "risk_appetite_high": false,
+    "risk_appetite_low": false,
+    "chain": false,
+    "multi_level": false,
+    "fanout": false,
+    "unknown_orchestration": false,
+    "choreography": false,
+    "orchestrated": false,
+    "bpm": false,
+    "sync": true,
+    "async": false,
+    "event_needed": true,
+    "queue_needed": false,
+    "file_needed": false,
+    "soap_needed": false,
+    "cdc_needed": false,
+    "etl_needed": false,
+    "dwh": false,
+    "legacy": false,
+    "partner": false,
+    "saga": false,
+    "outbox_needed": false,
+    "inbox_needed": true,
+    "dedupe": true,
+    "strict_order": false,
+    "global_order": false,
+    "replay": false,
+    "event_sourcing": false,
+    "large_data": true,
+    "very_large": false,
+    "sensitive": false,
+    "regulated": false,
+    "ha": false,
+    "dr": false,
+    "many_systems": false,
+    "blocking_chain_len": 0,
+    "customer_visible": false,
+    "money_impact": false,
+    "direct_money_impact": false,
+    "regulatory_impact": false,
+    "read_heavy": false,
+    "very_read_heavy": false,
+    "write_heavy_business": false,
+    "strict_freshness": true,
+    "stale_allowed": false,
+    "stale_dangerous": false,
+    "prefer_speed": false,
+    "can_show_stale": false,
+    "partial_response_ok": false,
+    "queue_for_later": false,
+    "unstable_external": false,
+    "enrichment_needed": false,
+    "enrichment_intent": false,
+    "rest_enrichment": false,
+    "single_kafka_only": true,
+    "raw_enriched_allowed": false,
+    "source_lacks_kafka": false,
+    "enrichment_required": false,
+    "enrichment_critical": false,
+    "enrichment_consistency_unknown": false,
+    "event_owner_conflict": false,
+    "shared_topic_selective": true,
+    "new_topic_forbidden": true,
+    "business_situations": "{'highload_write_stream', 'data_synchronization', 'shared_topic_selective_consumer'}"
+  },
+  "patterns": [
+    {
+      "id": "selective_consumer",
+      "name": "Selective Kafka Consumer",
+      "score": 82,
+      "why": [
+        "Consumer читает общий topic и отбирает только нужные события по key/header/body."
+      ],
+      "controls": [
+        "filter_ratio",
+        "consumer_lag",
+        "poll_fetch_tuning",
+        "idempotent_sink",
+        "offset_after_processing",
+        "poison_quarantine"
+      ],
+      "risks": [
+        "Если нужных событий очень мало, bottleneck может быть не БД, а чтение/десериализация/фильтрация всего topic."
+      ]
+    },
+    {
+      "id": "kafka",
+      "name": "Kafka/Event Streaming",
+      "score": 70,
+      "why": [
+        "События, replay, fan-out, highload."
+      ],
+      "controls": [
+        "schema registry",
+        "partition key",
+        "consumer groups",
+        "DLQ/retry topics",
+        "lag monitoring"
+      ],
+      "risks": [
+        "Нужны идемпотентные consumer-ы."
+      ]
+    },
+    {
+      "id": "inbox",
+      "name": "Inbox / Idempotent Consumer",
+      "score": 70,
+      "why": [
+        "Защита от дублей."
+      ],
+      "controls": [
+        "message registry",
+        "payload hash",
+        "unique keys",
+        "retention"
+      ],
+      "risks": [
+        "Нужен retention."
+      ]
+    },
+    {
+      "id": "scaling",
+      "name": "Highload Controls",
+      "score": 70,
+      "why": [
+        "Высокая/пиковая нагрузка."
+      ],
+      "controls": [
+        "rate limit",
+        "backpressure",
+        "autoscaling",
+        "partitioning",
+        "connection pools",
+        "load tests",
+        "capacity plan"
+      ],
+      "risks": [
+        "Без capacity plan решение рискованно."
+      ]
+    },
+    {
+      "id": "postgres",
+      "name": "PostgreSQL OLTP",
+      "score": 60,
+      "why": [
+        "Транзакционное хранилище."
+      ],
+      "controls": [
+        "constraints",
+        "indexes",
+        "migrations",
+        "backup",
+        "partitioning"
+      ],
+      "risks": [
+        "Не shared DB между сервисами."
+      ]
+    },
+    {
+      "id": "rest",
+      "name": "REST API + OpenAPI",
+      "score": 50,
+      "why": [
+        "Команды и получение статусов."
+      ],
+      "controls": [
+        "OpenAPI",
+        "idempotency",
+        "timeouts",
+        "error model",
+        "versioning"
+      ],
+      "risks": [
+        "Не строить длинную sync-цепочку."
+      ]
+    },
+    {
+      "id": "gateway",
+      "name": "API Gateway / Edge",
+      "score": 45,
+      "why": [
+        "Единый вход, auth, rate limit, routing."
+      ],
+      "controls": [
+        "auth",
+        "rate limit",
+        "WAF",
+        "routing",
+        "request validation"
+      ],
+      "risks": [
+        "Gateway не должен содержать бизнес-логику."
+      ]
+    },
+    {
+      "id": "cqrs",
+      "name": "CQRS / Read Models",
+      "score": 45,
+      "why": [
+        "Разные модели чтения/записи, highload/fan-out."
+      ],
+      "controls": [
+        "projections",
+        "rebuild",
+        "eventual consistency"
+      ],
+      "risks": [
+        "Усложняет систему."
+      ]
+    }
+  ],
+  "case_classes": [
+    {
+      "id": "shared_topic_selective_consumer",
+      "title": "Shared Kafka topic / selective consumer",
+      "score": 101,
+      "why": "Нужна выборочная обработка общего topic при запрете отдельного topic/source-change; главный каркас — consumer filtering + capacity/backpressure + idempotent sink, а не publisher/outbox.",
+      "top_level": "Shared Topic Selective Consumer + Idempotent Sink",
+      "required_controls": [
+        "filter_ratio",
+        "consumer_lag",
+        "partition_strategy",
+        "idempotent_sink",
+        "offset_after_processing",
+        "dlq_quarantine",
+        "batch_write",
+        "replay_plan"
+      ]
+    },
+    {
+      "id": "dual_write_db_broker",
+      "title": "DB + broker dual-write",
+      "score": 93,
+      "why": "Нужно атомарно связать изменение бизнес-сущности и публикацию события в Kafka/очередь.",
+      "top_level": "Event-driven + Transactional Outbox",
+      "required_controls": [
+        "outbox",
+        "publisher",
+        "idempotent_consumer",
+        "dlq",
+        "replay",
+        "lag_monitoring"
+      ]
+    }
+  ],
+  "production_gate": {
+    "level": "GREEN",
+    "text": "Можно отдавать в разработку после обычного ревью и фиксации ADR.",
+    "blocking_gaps": [],
+    "required_before_dev": [
+      "Зафиксировать ADR, владельцев, SLA, error matrix и тесты."
+    ],
+    "required_before_prod": [
+      "SLO/alerts/runbook",
+      "load test",
+      "replay/recovery drill",
+      "contract tests",
+      "security review",
+      "rollback plan"
+    ]
+  },
+  "structured_result": {
+    "case_class": "shared_topic_selective_consumer",
+    "case_classes": [
+      {
+        "id": "shared_topic_selective_consumer",
+        "title": "Shared Kafka topic / selective consumer",
+        "score": 101,
+        "why": "Нужна выборочная обработка общего topic при запрете отдельного topic/source-change; главный каркас — consumer filtering + capacity/backpressure + idempotent sink, а не publisher/outbox.",
+        "top_level": "Shared Topic Selective Consumer + Idempotent Sink",
+        "required_controls": [
+          "filter_ratio",
+          "consumer_lag",
+          "partition_strategy",
+          "idempotent_sink",
+          "offset_after_processing",
+          "dlq_quarantine",
+          "batch_write",
+          "replay_plan"
+        ]
+      },
+      {
+        "id": "dual_write_db_broker",
+        "title": "DB + broker dual-write",
+        "score": 93,
+        "why": "Нужно атомарно связать изменение бизнес-сущности и публикацию события в Kafka/очередь.",
+        "top_level": "Event-driven + Transactional Outbox",
+        "required_controls": [
+          "outbox",
+          "publisher",
+          "idempotent_consumer",
+          "dlq",
+          "replay",
+          "lag_monitoring"
+        ]
+      }
+    ],
+    "gate": {
+      "level": "GREEN",
+      "text": "Можно отдавать в разработку после обычного ревью и фиксации ADR.",
+      "blocking_gaps": [],
+      "required_before_dev": [
+        "Зафиксировать ADR, владельцев, SLA, error matrix и тесты."
+      ],
+      "required_before_prod": [
+        "SLO/alerts/runbook",
+        "load test",
+        "replay/recovery drill",
+        "contract tests",
+        "security review",
+        "rollback plan"
+      ]
+    },
+    "top_level_architecture": "Shared Topic Selective Consumer + Idempotent Sink",
+    "internal_layers": [
+      {
+        "name": "Top-level architecture",
+        "purpose": "Shared Topic Selective Consumer + Idempotent Sink",
+        "controls": [
+          "filter_ratio",
+          "consumer_lag",
+          "partition_strategy",
+          "idempotent_sink",
+          "offset_after_processing",
+          "dlq_quarantine",
+          "batch_write",
+          "replay_plan"
+        ]
+      },
+      {
+        "name": "Inbox / idempotent consumer",
+        "purpose": "Дедупликация входящих событий и безопасный retry",
+        "controls": []
+      },
+      {
+        "name": "Event stream",
+        "purpose": "Fan-out, replay, асинхронная доставка",
+        "controls": []
+      },
+      {
+        "name": "Selective Kafka consumer",
+        "purpose": "Фильтрация общего topic, контроль lag/filter ratio и безопасная запись в sink",
+        "controls": []
+      }
+    ],
+    "required_controls": [
+      "filter_ratio",
+      "consumer_lag",
+      "partition_strategy",
+      "idempotent_sink",
+      "offset_after_processing",
+      "dlq_quarantine",
+      "batch_write",
+      "replay_plan",
+      "poll_fetch_tuning",
+      "schema registry",
+      "partition key",
+      "consumer groups",
+      "DLQ/retry topics",
+      "message registry",
+      "payload hash",
+      "unique keys",
+      "retention",
+      "rate limit",
+      "backpressure",
+      "autoscaling",
+      "partitioning",
+      "constraints",
+      "indexes",
+      "migrations"
+    ],
+    "anti_patterns": [
+      {
+        "id": "compromise_without_rationale",
+        "title": "Компромиссный режим без явного обоснования",
+        "severity": "medium",
+        "why": "Выбраны ограничения по бюджету/срокам/стеку, но не описано, почему нельзя целевое решение.",
+        "fix": "Заполнить поле “Ограничения/компромиссы словами” и зафиксировать это в ADR как trade-off."
+      }
+    ],
+    "mvp_scope": [
+      "Зафиксировать входной контракт и error model.",
+      "Добавить correlationId/requestId во все вызовы.",
+      "Сохранить операцию/заявку до внешних вызовов.",
+      "Настроить timeout и ограниченный retry с backoff.",
+      "Логировать технические и бизнес-ошибки без ПДн.",
+      "Transactional Outbox для публикации критичных событий.",
+      "Inbox/deduplication для входящих событий/callback."
+    ],
+    "production_scope": [
+      "Полная наблюдаемость: latency/error rate/availability, traces, stuck process age, DLQ/retry rate.",
+      "Runbook и manual recovery для зависших операций.",
+      "Contract/e2e/load/failover tests.",
+      "Security/privacy review: masking, service auth, secrets, retention.",
+      "Outbox publisher со stuck alerts, replay и мониторингом publish lag.",
+      "Retention, replay и DLQ для Inbox/consumers.",
+      "Topic strategy, partition key, schema registry, compatibility mode, retry topics/DLQ."
+    ],
+    "acceptance_criteria": [
+      "Happy path выполняется.",
+      "Повтор не создаёт дубль.",
+      "Каждый шаг имеет status, owner, timeout, retry/after_retry.",
+      "DWH/analytics не блокирует клиентский процесс.",
+      "Контракты версионируются и имеют compatibility policy.",
+      "API имеет версионирование, error model, rate limits, idempotency rules для POST/команд.",
+      "Логи не содержат чувствительные данные.",
+      "Метрики и алерты покрывают API, DB, broker, DLQ, outbox, stuck steps, lag, retry rate и external dependency health.",
+      "Проведён load/stress test на целевой RPS и peak factor.",
+      "Есть backpressure/rate limit/autoscaling policy."
+    ],
+    "test_scenarios": [
+      "Unit tests бизнес-правил.",
+      "Integration tests DB/external clients.",
+      "Contract tests API/events/files.",
+      "E2E happy path and negative paths.",
+      "Load tests.",
+      "Stress tests.",
+      "Soak tests.",
+      "Failover tests.",
+      "DLQ/retry/replay tests."
+    ],
+    "adr": {
+      "title": "ADR-001: Интеграционный подход для v5 production regression",
+      "context": [
+        "Бизнес-цель: Есть общий Kafka topic, source менять нельзя, отдельный topic запрещён, нужно фильтровать 1% событий и писать их в Postgres.",
+        "Основная рекомендация: Shared Topic Selective Consumer + Idempotent Sink.",
+        "Готовность требований: 87%."
+      ],
+      "decision": [
+        "Использовать Shared Topic Selective Consumer + Idempotent Sink как главную архитектуру.",
+        "Частные паттерны оформлять как внутренние слои, а не как конкурирующие top-level решения.",
+        "Для критичных операций использовать idempotency, state tracking, audit и recovery.",
+        "Для shared Kafka topic: не подменять кейс Outbox-ом; главный контур — selective consumer, capacity/backpressure, idempotent sink, DLQ/quarantine, lag/filter metrics и replay plan."
+      ],
+      "alternatives": [
+        "Альтернативы не выявлены по заполненным данным."
+      ],
+      "consequences": [
+        "Потребуется ownership процесса, контракты, тесты, SRE-метрики и runbook.",
+        "Решение должно пройти архитектурное ревью перед production."
+      ]
+    }
+  },
+  "variants": [
+    {
+      "name": "Shared Topic Selective Consumer + Idempotent Sink",
+      "pattern_ids": [
+        "kafka",
+        "selective_consumer",
+        "inbox",
+        "postgres",
+        "scaling"
+      ],
+      "patterns": [
+        "Kafka/Event Streaming",
+        "Selective Kafka Consumer",
+        "Inbox / Idempotent Consumer",
+        "PostgreSQL OLTP",
+        "Highload Controls"
+      ],
+      "score": 100,
+      "raw_score": 158,
+      "why": [
+        "Есть общий Kafka topic, отдельный topic/source-change невозможны или нежелательны; нужно безопасно читать весь поток, фильтровать нужные события и писать только accepted subset в БД.",
+        "Выбранный класс кейса требует именно этот top-level каркас: Shared Kafka topic / selective consumer"
+      ],
+      "complexity": "Средняя",
+      "latency": "Async; зависит от lag и размера общего topic",
+      "reliability": "Высокая при capacity plan + idempotent sink + DLQ/quarantine",
+      "risks": [
+        "Это компромисс, а не идеал: лучше иметь выделенный topic/producer-side routing, но если это запрещено — компенсировать lag monitoring, filter ratio, batch writes и replay plan."
+      ],
+      "blocked": false,
+      "_priority": 330,
+      "case_class_role": "candidate_top_level",
+      "case_class_reason": "Нужна выборочная обработка общего topic при запрете отдельного topic/source-change; главный каркас — consumer filtering + capacity/backpressure + idempotent sink, а не publisher/outbox."
+    },
+    {
+      "name": "Non-invasive Existing Process Extension",
+      "pattern_ids": [
+        "postgres",
+        "scaling"
+      ],
+      "patterns": [
+        "PostgreSQL OLTP",
+        "Highload Controls"
+      ],
+      "score": 100,
+      "raw_score": 145,
+      "why": [
+        "Production/source flow менять нельзя, поэтому допустимы read-only/CDC/file/adapter подходы или явно рискованный export/snapshot compromise."
+      ],
+      "complexity": "Средняя",
+      "latency": "batch/near-real-time",
+      "reliability": "Средняя/высокая",
+      "risks": [
+        "Нельзя гарантировать атомарную связь бизнес-изменения и публикации события из read-only канала; нужен ADR с residual risk."
+      ],
+      "blocked": false,
+      "_priority": 85,
+      "case_class_role": "supporting_layer_or_alternative",
+      "case_class_reason": "Нужна выборочная обработка общего topic при запрете отдельного topic/source-change; главный каркас — consumer filtering + capacity/backpressure + idempotent sink, а не publisher/outbox."
+    },
+    {
+      "name": "Data Synchronization / Source-of-Truth Sync",
+      "pattern_ids": [
+        "kafka",
+        "inbox",
+        "postgres",
+        "scaling"
+      ],
+      "patterns": [
+        "Kafka/Event Streaming",
+        "Inbox / Idempotent Consumer",
+        "PostgreSQL OLTP",
+        "Highload Controls"
+      ],
+      "score": 100,
+      "raw_score": 134,
+      "why": [
+        "Нужно синхронизировать состояние между системами: source of truth, версии, delta/snapshot, conflict resolution и reconciliation."
+      ],
+      "complexity": "Средняя/высокая",
+      "latency": "Batch/near-real-time",
+      "reliability": "Высокая для копий данных",
+      "risks": [
+        "Нужно описать правила конфликтов и deleted-события/удаления."
+      ],
+      "blocked": false,
+      "_priority": 85,
+      "case_class_role": "supporting_layer_or_alternative",
+      "case_class_reason": "Нужна выборочная обработка общего topic при запрете отдельного topic/source-change; главный каркас — consumer filtering + capacity/backpressure + idempotent sink, а не publisher/outbox."
+    }
+  ],
+  "recommended": {
+    "name": "Shared Topic Selective Consumer + Idempotent Sink",
+    "pattern_ids": [
+      "kafka",
+      "selective_consumer",
+      "inbox",
+      "postgres",
+      "scaling"
+    ],
+    "patterns": [
+      "Kafka/Event Streaming",
+      "Selective Kafka Consumer",
+      "Inbox / Idempotent Consumer",
+      "PostgreSQL OLTP",
+      "Highload Controls"
+    ],
+    "score": 100,
+    "raw_score": 158,
+    "why": [
+      "Есть общий Kafka topic, отдельный topic/source-change невозможны или нежелательны; нужно безопасно читать весь поток, фильтровать нужные события и писать только accepted subset в БД.",
+      "Выбранный класс кейса требует именно этот top-level каркас: Shared Kafka topic / selective consumer"
+    ],
+    "complexity": "Средняя",
+    "latency": "Async; зависит от lag и размера общего topic",
+    "reliability": "Высокая при capacity plan + idempotent sink + DLQ/quarantine",
+    "risks": [
+      "Это компромисс, а не идеал: лучше иметь выделенный topic/producer-side routing, но если это запрещено — компенсировать lag monitoring, filter ratio, batch writes и replay plan."
+    ],
+    "blocked": false,
+    "_priority": 330,
+    "case_class_role": "candidate_top_level",
+    "case_class_reason": "Нужна выборочная обработка общего topic при запрете отдельного topic/source-change; главный каркас — consumer filtering + capacity/backpressure + idempotent sink, а не publisher/outbox."
+  },
+  "anti_patterns": [
+    {
+      "id": "compromise_without_rationale",
+      "title": "Компромиссный режим без явного обоснования",
+      "severity": "medium",
+      "why": "Выбраны ограничения по бюджету/срокам/стеку, но не описано, почему нельзя целевое решение.",
+      "fix": "Заполнить поле “Ограничения/компромиссы словами” и зафиксировать это в ADR как trade-off."
+    }
+  ],
+  "db": {
+    "storage": [
+      "PostgreSQL OLTP",
+      "Read replicas where needed",
+      "Connection pooling",
+      "Partitioned hot tables",
+      "Kafka/Брокер событий",
+      "Archive/Object storage for cold data"
+    ],
+    "tables": [
+      {
+        "name": "contract_event",
+        "purpose": "Основная бизнес-сущность",
+        "fields": [
+          [
+            "id",
+            "uuid primary key"
+          ],
+          [
+            "event_id",
+            "uuid not null"
+          ],
+          [
+            "contract_id",
+            "uuid not null"
+          ],
+          [
+            "event_type",
+            "text not null"
+          ],
+          [
+            "idempotency_key",
+            "text"
+          ],
+          [
+            "status",
+            "text not null"
+          ],
+          [
+            "version",
+            "integer not null default 1"
+          ],
+          [
+            "correlation_id",
+            "text"
+          ],
+          [
+            "created_at",
+            "timestamp not null default now()"
+          ],
+          [
+            "updated_at",
+            "timestamp not null default now()"
+          ],
+          [
+            "archived_at",
+            "timestamp"
+          ]
+        ],
+        "indexes": [
+          "(status)",
+          "(created_at)",
+          "(correlation_id)",
+          "(contract_id)",
+          "unique(event_id)",
+          "unique(idempotency_key) where idempotency_key is not null"
+        ]
+      },
+      {
+        "name": "inbox_messages",
+        "purpose": "Дедупликация входящих сообщений",
+        "fields": [
+          [
+            "message_id",
+            "text not null"
+          ],
+          [
+            "consumer_name",
+            "text not null"
+          ],
+          [
+            "payload_hash",
+            "text"
+          ],
+          [
+            "status",
+            "text not null"
+          ],
+          [
+            "processed_at",
+            "timestamp not null default now()"
+          ],
+          [
+            "primary key",
+            "(message_id, consumer_name)"
+          ]
+        ],
+        "indexes": [
+          "(processed_at)",
+          "(status)"
+        ]
+      }
+    ],
+    "ddl": "-- Draft SQL DDL. Требует DBA/security review.\n-- Статусы: \n\n-- Основная бизнес-сущность\ncreate table contract_event (\n    id uuid primary key,\n    event_id uuid not null,\n    contract_id uuid not null,\n    event_type text not null,\n    idempotency_key text,\n    status text not null,\n    version integer not null default 1,\n    correlation_id text,\n    created_at timestamp not null default now(),\n    updated_at timestamp not null default now(),\n    archived_at timestamp\n);\ncreate index idx_contract_event_1 on contract_event(status);\ncreate index idx_contract_event_2 on contract_event(created_at);\ncreate index idx_contract_event_3 on contract_event(correlation_id);\ncreate index idx_contract_event_4 on contract_event(contract_id);\ncreate unique index ux_contract_event_5 on contract_event(event_id);\ncreate unique index ux_contract_event_6 on contract_event(idempotency_key) where idempotency_key is not null;\n\n-- Дедупликация входящих сообщений\ncreate table inbox_messages (\n    message_id text not null,\n    consumer_name text not null,\n    payload_hash text,\n    status text not null,\n    processed_at timestamp not null default now(),\n    primary key (message_id, consumer_name)\n);\ncreate index idx_inbox_messages_1 on inbox_messages(processed_at);\ncreate index idx_inbox_messages_2 on inbox_messages(status);\n\n-- Highload: validate indexes with EXPLAIN, avoid unbounded scans, tune pool sizes and batch sizes.",
+    "partitioning": [
+      "Partition audit/history/outbox/inbox/integration_attempts/event_enrichment_attempts by created_at.",
+      "Use aggregateId/entityId as Kafka partition key.",
+      "Capacity plan: broker partitions, DB indexes, connection pools, worker concurrency."
+    ],
+    "retention": [
+      "Retention: not_defined.",
+      "Outbox/inbox/integration_attempts имеют отдельный retention.",
+      "Audit/security срок согласовать с ИБ/юристами."
+    ],
+    "target_only": false
+  },
+  "contracts": {
+    "api": [],
+    "events": [
+      "Envelope: eventId,eventType,eventVersion,producer,occurredAt,publishedAt,correlationId,causationId,aggregateId,aggregateVersion",
+      "Partition key: aggregateId/entityId",
+      "Events: EntityCreated, EntityUpdated/EntityStatusChanged, ProcessStepCompleted, ProcessStepFailed",
+      "Schema evolution: backward-compatible by default",
+      "Consumer contract: idempotent, handles duplicates, handles out-of-order inside allowed window"
+    ],
+    "queue": [],
+    "selective_consumer": [
+      "Input topic: shared topic name, partitions, retention, schema versions",
+      "Filter contract: field/key/header used for selection, accepted values, null/unknown policy",
+      "Metrics: consumed_total, filtered_out_total, accepted_total, filter_ratio, consumer_lag, db_write_latency, poison_count",
+      "Commit policy: commit offsets only after accepted event is safely written or intentionally skipped by deterministic filter",
+      "Sink contract: unique eventId/businessKey, upsert/insert policy, batch size, retry/DLQ/quarantine and replay window"
+    ],
+    "enrichment": [],
+    "files": [],
+    "cdc": [],
+    "dwh": [],
+    "soap": [],
+    "security": [
+      "Auth scopes/roles per endpoint/topic/file/feed",
+      "Sensitive fields masked in logs",
+      "mTLS/TLS for service channels",
+      "Audit event for access/change"
+    ],
+    "privacy": [],
+    "decision": []
+  },
+  "scenarios": {
+    "main": [
+      "Инициатор отправляет команду или событие старта.",
+      "Contract Service сохраняет состояние ContractEvent.",
+      "  Шаг 1: Read shared topic → Consumer через Kafka (non_blocking).",
+      "  Шаг 2: Write accepted event → Consumer через SQL (non_blocking).",
+      "Consumer читает общий Kafka topic, применяет детерминированный фильтр по key/header/body и считает filtered/accepted ratio.",
+      "Ненужные события пропускаются без записи; нужные события пишутся в sink идемпотентно, после чего фиксируется offset.",
+      "Poison/invalid accepted events уходят в quarantine/DLQ с owner, alert и reprocess policy.",
+      "Финальный статус фиксируется в entity/status_history/audit_log."
+    ],
+    "alternatives": {
+      "poison_message": [
+        "Где: Consumer",
+        "Блокирует: non_blocking",
+        "Retry: yes",
+        "После retry: DLQ",
+        "Owner: Integration Team"
+      ]
+    },
+    "error_path": [
+      "Техническая ошибка фиксируется в integration_attempts/event_enrichment_attempts.",
+      "Если retry=yes — выполняется retry with exponential backoff + jitter.",
+      "При ошибке REST enrichment исходное изменение не откатывается; outbox остаётся в NEW/ENRICHING/FAILED до retry или ручного reprocess.",
+      "После исчерпания retry сообщение уходит в DLQ/FAILED или создаётся manual_recovery_task.",
+      "Алерт уходит владельцу шага и дежурной команде."
+    ],
+    "compensation_path": []
+  },
+  "diagrams": {
+    "component": "flowchart LR\nI[Initiator]\nS[Contract Service]\nI --> S\nS --> DB[(Primary DB)]\nO --> K[(Брокер событий)]\nS --> T1[Contract Service]\nS --> T2[Analytics DB]\nS --> OBS[(Logs/Metrics/Traces/Audit)]",
+    "happy": "sequenceDiagram\nparticipant I as Initiator\nparticipant S as Contract Service\nparticipant DB as Primary DB\nparticipant K as Брокер событий\nparticipant T1 as Contract Service\nparticipant T2 as Analytics DB\nI->>S: command/request\nS->>S: auth + validation + idempotency\nS->>DB: save entity/status\nDB-->>S: commit ok\nS->>K: publish status/domain event\nK-->>T1: deliver event\nS-->>I: trackingId/status/result",
+    "error": "sequenceDiagram\nparticipant W as Worker/PM\nparticipant T as Target System\nparticipant DB as DB\nparticipant DLQ as DLQ/Manual Recovery\nW->>T: call step\nT--xW: timeout/5xx\nW->>DB: save failed attempt\nW->>W: retry with backoff\nW->>DLQ: after retry exhausted\nDLQ-->>W: manual/replay decision",
+    "compensation": "sequenceDiagram\nparticipant PM as Process Manager\nparticipant S1 as Successful Step\nparticipant C as Compensation\nparticipant M as Manual Task\nPM->>PM: detect failed blocking step\nPM->>C: run compensation for completed steps\nC-->>PM: compensation result\nalt compensation failed\nPM->>M: create manual recovery task\nend"
+  },
+  "lifecycle": {
+    "backlog": [
+      "Утвердить owner процесса и систем.",
+      "Утвердить source of truth и владение полями.",
+      "Утвердить статусную модель и финальные статусы.",
+      "Согласовать API/event/file/CDC/DWH contracts.",
+      "API lifecycle: versioning, backward compatibility, deprecation policy, pagination/filtering/sorting, rate limits, unified error model.",
+      "Data governance: schema versioning, compatibility mode, late/out-of-order/deleted events, lineage, quality checks, reprocessing window.",
+      "Capacity plan: RPS/TPS, payload size, partitions/consumers/workers, DB pool/indexes, retention, write amplification.",
+      "SRE/SLI: latency, error rate, availability, consumer lag, DLQ size, retry rate, stuck process age, external dependency health.",
+      "Security/privacy: masking logs, RBAC/service auth, secrets, retention, minimization, encryption where needed.",
+      "Реализовать миграции БД и индексы.",
+      "Добавить correlationId/requestId во все каналы.",
+      "Настроить logs/metrics/traces/audit.",
+      "Подготовить integration/contract/e2e tests.",
+      "Зафиксировать ADR trade-off: почему целевой вариант невозможен сейчас, какой риск принимаем, кто owner риска, когда пересматриваем.",
+      "Разделить delivery на Safe MVP и Phase 2 hardening; запретить “временные” решения без даты пересмотра.",
+      "Подготовить capacity plan: RPS, partitions, workers, DB pool, indexes.",
+      "Провести load/stress/soak tests.",
+      "Настроить backpressure/rate limits/autoscaling.",
+      "Реализовать Inbox/idempotent consumer и retention.",
+      "Описать topic strategy, partition key, schema registry, DLQ/retry topics.",
+      "Для single Kafka topic зафиксировать: raw-событие не публикуется отдельно, outbox ждёт enrichment, в Kafka уходит только финальный event/snapshot.",
+      "Закрыть critical/high anti-patterns до production."
+    ],
+    "tests": [
+      "Unit tests бизнес-правил.",
+      "Integration tests DB/external clients.",
+      "Contract tests API/events/files.",
+      "E2E happy path and negative paths.",
+      "Load tests.",
+      "Stress tests.",
+      "Soak tests.",
+      "Failover tests.",
+      "DLQ/retry/replay tests."
+    ],
+    "rollout": [
+      "Canary на малую долю.",
+      "Сравнить с baseline.",
+      "Расширять при нормальных метриках."
+    ],
+    "adr": [
+      {
+        "title": "ADR-001: Shared Topic Selective Consumer + Idempotent Sink",
+        "decision": "Использовать Shared Topic Selective Consumer + Idempotent Sink.",
+        "consequences": "Требуются владельцы, контракты, monitoring и recovery."
+      },
+      {
+        "title": "ADR-002: Source of truth",
+        "decision": "Source of truth: unclear; direct DB write запрещён.",
+        "consequences": "Изменения только через согласованный доменный контракт."
+      },
+      {
+        "title": "ADR-003: Failure policy",
+        "decision": "Failure policy: retry.",
+        "consequences": "Каждый шаг должен иметь retry/compensation/manual recovery."
+      }
+    ],
+    "acceptance": [
+      "Happy path выполняется.",
+      "Повтор не создаёт дубль.",
+      "Каждый шаг имеет status, owner, timeout, retry/after_retry.",
+      "DWH/analytics не блокирует клиентский процесс.",
+      "Контракты версионируются и имеют compatibility policy.",
+      "API имеет версионирование, error model, rate limits, idempotency rules для POST/команд.",
+      "Логи не содержат чувствительные данные.",
+      "Метрики и алерты покрывают API, DB, broker, DLQ, outbox, stuck steps, lag, retry rate и external dependency health.",
+      "Проведён load/stress test на целевой RPS и peak factor.",
+      "Есть backpressure/rate limit/autoscaling policy."
+    ]
+  },
+  "readiness": {
+    "score": 87,
+    "confidence": 84,
+    "confidence_level": "high",
+    "gaps": [
+      "Не определён source of truth.",
+      "Не определено владение данными."
+    ]
+  },
+  "composite_architecture": {
+    "summary": "Целевая архитектура должна рассматриваться как композиция слоёв, а не как один паттерн.",
+    "layers": [
+      {
+        "layer": "1. Входной контур",
+        "decision": "Принять команду/запрос безопасно и быстро",
+        "components": [
+          "Service API",
+          "Idempotency validation",
+          "Request validation"
+        ],
+        "controls": [
+          "Auth/RBAC",
+          "rate limit",
+          "correlationId",
+          "единая error model"
+        ],
+        "risks": []
+      },
+      {
+        "layer": "2. Core operation",
+        "decision": "Простая операция в source-of-truth сервисе",
+        "components": [
+          "Primary DB",
+          "domain service"
+        ],
+        "controls": [
+          "transaction boundary",
+          "unique constraints",
+          "audit"
+        ],
+        "risks": []
+      },
+      {
+        "layer": "3. Async/events",
+        "decision": "Отвязать тяжёлые/побочные интеграции от пользовательского потока",
+        "components": [
+          "producer",
+          "Kafka/Queue",
+          "Inbox/idempotent consumers"
+        ],
+        "controls": [
+          "partition key",
+          "DLQ/retry topic",
+          "consumer lag alerts",
+          "replay policy"
+        ],
+        "risks": []
+      },
+      {
+        "layer": "8. Observability/SRE",
+        "decision": "Эксплуатационная готовность",
+        "components": [
+          "logs",
+          "metrics",
+          "traces",
+          "business dashboard"
+        ],
+        "controls": [
+          "latency/error rate/availability SLI",
+          "DLQ size",
+          "retry rate",
+          "consumer lag",
+          "stuck process age",
+          "external dependency health"
+        ],
+        "risks": []
+      }
+    ],
+    "cross_cutting": [
+      "API lifecycle: versioning, backward compatibility, deprecation policy, pagination/filtering/sorting where needed, rate limits, unified error model.",
+      "Data contracts: schema versioning, compatibility mode, deleted/late/out-of-order events, reprocessing window.",
+      "Capacity planning: RPS/TPS, payload size, partitions/consumers/workers, DB pool/indexes, retention, write amplification."
+    ]
+  },
+  "advanced": {
+    "quality_gate": {
+      "status": "ready",
+      "text": "Данных достаточно для предварительного ADR и обсуждения с архитектором.",
+      "gaps": [
+        "Не определён source of truth.",
+        "Не определено владение данными."
+      ],
+      "critical_questions": [
+        "Кто является source of truth по основной сущности и по каждому критичному полю?",
+        "Какая команда владеет процессом, данными, SLA и ручным восстановлением?",
+        "Какие target RPS/TPS, peak, payload size, retention, допустимый lag, DB write rate и лимиты внешних API?",
+        "Какие ограничения являются жёсткими, а какие можно пересогласовать: новый сервис, новая инфраструктура, изменение source, сроки, бюджет?",
+        "Какой остаточный риск бизнес готов принять временно, и какой deadline для перехода к целевому варианту?",
+        "Что является главным результатом: команда/операция, событие, read-model, batch file, webhook intake, DWH pipeline или migration?"
+      ]
+    },
+    "tradeoffs": {
+      "constraints": [
+        "Source-систему нельзя менять: outbox/state-machine в source недоступны без пересогласования."
+      ],
+      "non_negotiable": [
+        "correlationId/requestId во всех каналах",
+        "timeouts на sync/REST вызовах",
+        "owner и alert для каждой ошибки",
+        "идемпотентность при retry/async",
+        "логирование без ПДн/секретов",
+        "schema/versioning события",
+        "DLQ/retry/reprocess policy для broker/consumer"
+      ],
+      "feasible_v1": [
+        "Ограничения не блокируют целевое решение; можно идти по production-ready варианту поэтапно."
+      ],
+      "target": [
+        "Целевой вариант: архитектура без искусственных ограничений — отдельные границы ответственности, outbox/inbox, dedicated publisher/orchestrator при необходимости, полная observability."
+      ],
+      "residual_risks": [
+        "Остаточный риск низкий/средний при выполнении non-negotiable controls и тестов."
+      ],
+      "phase2": [
+        "После MVP провести production readiness review и решить, нужен ли вынос в отдельный сервис/инфраструктуру."
+      ]
+    },
+    "compromise_matrix": [
+      {
+        "option": "A. Архитектурно правильный вариант",
+        "when": "Когда можно менять нужные компоненты и есть бюджет на production controls.",
+        "decision": [
+          "Использовать целевой top-level паттерн: Shared Topic Selective Consumer + Idempotent Sink.",
+          "Разделить ownership: source of truth, technical publisher/adapter, consumer/target, operations owner.",
+          "Сразу заложить production controls: Outbox/Inbox или эквивалент, DLQ/quarantine, replay, observability, contract tests."
+        ],
+        "risk": "Ниже, но дороже/дольше."
+      },
+      {
+        "option": "B. Безопасный компромисс",
+        "when": "Когда стек/сроки/бюджет ограничены.",
+        "decision": [
+          "Оставить существующие ограничения стека/бюджета, но добавить минимально безопасные контроли: correlationId, idempotency/replay where retries exist, timeouts + retry limits, owner + alert, monitoring + runbook, ADR with accepted residual risk.",
+          "Не переименовывать компромисс в “идеальную архитектуру”: явно указать residual risk и дату пересмотра."
+        ],
+        "risk": "Средний; допустим только с ADR, monitoring и планом phase 2."
+      },
+      {
+        "option": "C. Временный workaround",
+        "when": "Только для короткого периода или emergency.",
+        "decision": [
+          "Допустим только как временный workaround: manual/reconciliation path, ограниченный scope, feature flag/kill switch, ежедневный контроль расхождений.",
+          "Запрещено скрывать отсутствие ключевых гарантий: если нет atomics/replay/idempotency — это должно быть blocker или accepted risk."
+        ],
+        "risk": "Высокий; нужен срок жизни, owner, rollback и ручная сверка."
+      }
+    ],
+    "mvp": [
+      "Зафиксировать входной контракт и error model.",
+      "Добавить correlationId/requestId во все вызовы.",
+      "Сохранить операцию/заявку до внешних вызовов.",
+      "Настроить timeout и ограниченный retry с backoff.",
+      "Логировать технические и бизнес-ошибки без ПДн.",
+      "Transactional Outbox для публикации критичных событий.",
+      "Inbox/deduplication для входящих событий/callback."
+    ],
+    "production": [
+      "Полная наблюдаемость: latency/error rate/availability, traces, stuck process age, DLQ/retry rate.",
+      "Runbook и manual recovery для зависших операций.",
+      "Contract/e2e/load/failover tests.",
+      "Security/privacy review: masking, service auth, secrets, retention.",
+      "Outbox publisher со stuck alerts, replay и мониторингом publish lag.",
+      "Retention, replay и DLQ для Inbox/consumers.",
+      "Topic strategy, partition key, schema registry, compatibility mode, retry topics/DLQ."
+    ],
+    "rejected_alternatives": [],
+    "capacity": {
+      "peak_rps": 6000,
+      "payload_kb": 5,
+      "traffic_mbps": 29.3,
+      "daily_gb": 494.38,
+      "retention_days": 30,
+      "lag_seconds": 60,
+      "recommended_partitions": 9,
+      "recommended_partitions_range": "9–18",
+      "notes": [
+        "Это не sizing, а стартовая гипотеза для нагрузочного теста; финальное число partitions/workers считается по latency, consumer lag, DB write amplification, лимитам downstream и storage.",
+        "Нужны backpressure, rate limit, отдельный capacity plan для consumers/workers и БД.",
+        "Проверьте retention, storage cost, compaction/archiving и write amplification."
+      ]
+    },
+    "extra_diagrams": {
+      "context": "flowchart LR\n  User[User/Initiator] --> API[API / Entry Point]\n  API --> PM[Process Manager / State Machine]\n  PM -. async/non-blocking .-> S0[Contract Service]\n  PM -. async/non-blocking .-> S1[Analytics DB]",
+      "event_flow": "sequenceDiagram\n  participant Core as Core/Process Manager\n  participant Outbox as Outbox\n  participant Broker as Broker/Queue\n  participant Consumer as Consumer/Inbox\n  participant DLQ as DLQ\n  Core->>Outbox: save event in same transaction\n  Outbox->>Broker: publish event\n  Broker->>Consumer: deliver event\n  Consumer->>Consumer: dedupe/idempotency check\n  alt processing failed\n    Consumer->>DLQ: move poison message\n  else success\n    Consumer-->>Broker: ack\n  end",
+      "data_flow": "flowchart TD\n  Source[(Source of Truth)] --> Core[(Operational DB)]\n  Core --> Audit[(Audit/Status History)]",
+      "failure_flow": "sequenceDiagram\n  participant Caller\n  participant API\n  participant Core\n  participant External\n  participant Ops as Manual Recovery\n  Caller->>API: request with correlationId/idempotencyKey\n  API->>Core: persist operation + status\n  Core->>External: call with timeout\n  alt timeout/error\n    Core->>Core: retry with backoff\n    Core->>Ops: create manual task if retries exhausted\n    Core-->>Caller: trackingId + status PROCESSING/ERROR\n  else success\n    Core-->>Caller: result/status\n  end"
+    },
+    "current_vs_target": [
+      "Добавить Transactional Outbox.",
+      "Добавить Inbox/idempotency.",
+      "Добавить DLQ.",
+      "Добавить Monitoring/metrics.",
+      "Добавить Audit.",
+      "Добавить Broker/event stream."
+    ],
+    "impact_analysis": [
+      "Специальный impact-analysis не требуется по выбранным формам; достаточно обычных contract/error/rollout checks."
+    ],
+    "adr": {
+      "title": "ADR-001: Интеграционный подход для v5 production regression",
+      "context": [
+        "Бизнес-цель: Есть общий Kafka topic, source менять нельзя, отдельный topic запрещён, нужно фильтровать 1% событий и писать их в Postgres.",
+        "Основная рекомендация: Shared Topic Selective Consumer + Idempotent Sink.",
+        "Готовность требований: 87%."
+      ],
+      "decision": [
+        "Использовать Shared Topic Selective Consumer + Idempotent Sink как главную архитектуру.",
+        "Частные паттерны оформлять как внутренние слои, а не как конкурирующие top-level решения.",
+        "Для критичных операций использовать idempotency, state tracking, audit и recovery.",
+        "Для shared Kafka topic: не подменять кейс Outbox-ом; главный контур — selective consumer, capacity/backpressure, idempotent sink, DLQ/quarantine, lag/filter metrics и replay plan."
+      ],
+      "alternatives": [
+        "Альтернативы не выявлены по заполненным данным."
+      ],
+      "consequences": [
+        "Потребуется ownership процесса, контракты, тесты, SRE-метрики и runbook.",
+        "Решение должно пройти архитектурное ревью перед production."
+      ]
+    },
+    "stakeholder_reports": {
+      "selected_analyst": [
+        "Описать статусы, error matrix, source of truth, контракты, owner/SLA, retry/replay и acceptance criteria.",
+        "Проверить открытые вопросы из quality gate до передачи в разработку."
+      ]
+    },
+    "templates": [
+      "REST request-response integration",
+      "REST + external API adapter",
+      "Kafka event publication with Outbox",
+      "Kafka consumer + Postgres idempotent sink",
+      "Shared topic selective consumer",
+      "Webhook intake + Inbox",
+      "Batch/File/SFTP exchange",
+      "SFTP reconciliation",
+      "Saga orchestration / process manager",
+      "BFF/API Composition / Customer 360",
+      "Status screen with cache/read model",
+      "DWH offloading and retention",
+      "CDC replication",
+      "Legacy strangler migration",
+      "Reference/master-data synchronization",
+      "Regulatory data model change",
+      "Current solution review / audit",
+      "Queue-based async worker",
+      "Near real-time decision flow"
+    ],
+    "specialized_cases": []
+  },
+  "specialized_cases": []
+}
