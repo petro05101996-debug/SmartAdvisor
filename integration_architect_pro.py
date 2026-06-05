@@ -705,7 +705,7 @@ class Engine:
           'observability_declared':parse_matrix(form.get('observability_matrix',''),['metric','where','threshold','alert','owner','dashboard']),
           'rollout_declared':parse_matrix(form.get('rollout_migration_matrix',''),['phase','scope','strategy','rollback','backfill','parallel_compare','go_no_go','owner']),
           'data_quality_lineage':parse_matrix(form.get('data_quality_lineage_matrix',''),['data_object','source','target','check','frequency','evidence','owner']),
-          'statuses':split_csv(form.get('statuses','')), 'final_statuses':split_csv(form.get('final_statuses',''))}
+          'statuses':split_csv(form.get('statuses','')), 'final_statuses':split_csv(form.get('final_statuses','')), 'wizard_production_gate':form.get('wizard_production_gate')}
         traits=self.classify(form,ctx)
         business=self.business_model(form,ctx,traits)
         ctx['business']=business
@@ -732,7 +732,7 @@ class Engine:
         structured=self.structured_result(form,ctx,traits,recommended,patterns,anti,case_classes,production_gate,advanced,lifecycle)
         md=self.markdown(form,ctx,traits,patterns,variants,recommended,anti,db,contracts,scenarios,diagrams,lifecycle,readiness,composite,advanced)
         md += self.specialized_cases_markdown(specialized)
-        return {'ctx':ctx,'traits':traits,'patterns':patterns,'case_classes':case_classes,'production_gate':production_gate,'structured_result':structured,'variants':variants,'recommended':recommended,'anti_patterns':anti,'db':db,'contracts':contracts,'scenarios':scenarios,'diagrams':diagrams,'lifecycle':lifecycle,'readiness':readiness,'composite_architecture':composite,'advanced':advanced,'specialized_cases':specialized,'markdown':md}
+        return {'ctx':ctx,'traits':traits,'patterns':patterns,'case_classes':case_classes,'production_gate':production_gate,'wizard_production_gate':form.get('wizard_production_gate'),'structured_result':structured,'variants':variants,'recommended':recommended,'anti_patterns':anti,'db':db,'contracts':contracts,'scenarios':scenarios,'diagrams':diagrams,'lifecycle':lifecycle,'readiness':readiness,'composite_architecture':composite,'advanced':advanced,'specialized_cases':specialized,'markdown':md}
 
     def specialized_case_pack(self,f,c,t,recommended,patterns,anti,db,contracts,scenarios,lifecycle):
         """Усиленный слой распознавания сложных интеграционных ситуаций.
@@ -2843,6 +2843,10 @@ body:not(.power-mode) .wizard,body:not(.power-mode) .quick,body:not(.power-mode)
 @media(max-width:760px){body{background:#07111f}.wrap{padding:14px 10px 86px}.mobile-note{display:block}.card,.beginner-panel,.ultra-panel,.wizard,.ux-assistant{border-radius:14px;padding:14px;margin-bottom:12px}h1{font-size:24px;line-height:1.15}h2{font-size:18px}.hero,.grid,.quick,.steps,.checklist,.choice-grid,.mini-grid,.form-builder,.simple-strip,.simple-result-grid,.advanced-rules,.ux-dashboard,.chain-map,.ultra-grid{grid-template-columns:1fr!important}.power-mode .ux-assistant{grid-template-columns:1fr}.ux-actions{justify-content:flex-start}.choice-card,.ultra-card,.builder-block,.simple-step,.simple-result,.chain-node{padding:12px}input,textarea,select{font-size:16px;min-height:44px}textarea{min-height:96px}.chip-group{display:grid;grid-template-columns:1fr;gap:8px}.chip{justify-content:flex-start;min-height:38px}.btn{width:100%;box-sizing:border-box}.nav{display:none}.mobile-actions{display:flex}.mode-switch-row{justify-content:stretch}.power-toggle{width:100%}.section summary{padding:14px;display:block}.section summary small{display:block;text-align:left;margin-top:4px}.section .grid{padding:0 12px 12px}.chain-row{grid-template-columns:1fr;gap:3px}.result{max-height:none;font-size:12px;padding:12px;overflow:auto}.report-actions{display:grid;grid-template-columns:1fr}.report-actions .btn{text-align:center}.beginner-digest{display:grid;grid-template-columns:1fr;gap:8px}.mobile-hide{display:none!important}}
 @media(min-width:761px){.beginner-digest{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.digest-item{border:1px solid var(--border);border-radius:14px;background:#0b1220;padding:10px}.digest-item b{display:block;color:#fff}}
 
+
+.start-screen h1{font-size:42px;margin:0 0 10px}.mode-choice-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.mode-choice{display:block;border:1px solid var(--border);border-radius:18px;background:#0b1220;padding:16px;cursor:pointer;min-height:104px}.mode-choice input{margin-right:8px}.mode-choice b{display:block;color:#fff;margin-bottom:8px}.mode-choice span{display:block;color:#9ca3af;font-size:13px;line-height:1.35}.mode-choice.selected,.mode-choice:has(input:checked){border-color:#60a5fa;box-shadow:0 0 0 1px rgba(96,165,250,.35);background:#0b1b33}.primary-row{display:flex;justify-content:flex-end;margin-top:16px}.is-hidden{display:none!important}.mode-header{display:flex;justify-content:space-between;align-items:center;gap:16px}.progress-rail{position:sticky;top:0;z-index:8;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;background:rgba(7,17,31,.95);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:16px;padding:8px;margin-bottom:14px}.progress-rail span{font-size:12px;color:#9ca3af;background:#0b1220;border-radius:999px;padding:8px;text-align:center}.progress-rail span.active{background:#1d4ed8;color:#fff}.mode-panel{border:1px solid var(--border);border-radius:18px;background:#0b1220;padding:18px;margin-bottom:14px}.mode-panel:not(.active-mode-panel){display:none}.simple-question-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.wizard-step-card{border:1px solid var(--border);border-radius:16px;background:#07111f;padding:14px;margin:12px 0}.mode-choice-grid.compact{grid-template-columns:repeat(3,minmax(0,1fr))}.mode-choice-grid.compact .mode-choice{min-height:auto}.visual-chain{border:1px dashed #334155;border-radius:14px;padding:14px;background:#0f172a;color:#dbeafe;white-space:pre-line;text-align:center}.advanced-card-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.advanced-card{border:1px solid var(--border);border-radius:14px;background:#07111f;padding:14px;color:#fff}.advanced-card span{display:block;margin-top:8px;color:#fbbf24;font-size:12px}.expert-mode .matrix-section,.expert-mode .section{display:block}.wizard-mode .matrix-section,.quick-mode .matrix-section,.review-mode .matrix-section{display:none}body.quick-mode .ultra-panel,body.quick-mode .beginner-panel,body.wizard-mode .ultra-panel,body.wizard-mode .beginner-panel,body.review-mode .ultra-panel,body.review-mode .beginner-panel,body.advanced-mode .ultra-panel,body.advanced-mode .beginner-panel{display:none!important}body.expert-mode details.section,body.expert-mode details.matrix-section{display:block!important}.review-screen{border-color:#60a5fa}.review-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.review-list div{border:1px solid var(--border);border-radius:14px;background:#07111f;padding:12px}.result-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}.result-tab{border:1px solid var(--border);border-radius:999px;background:#0b1220;color:#d1d5db;padding:9px 12px}.production-gate{border:1px solid var(--border);border-radius:16px;padding:14px;background:#07111f;margin:12px 0}.gate-green{border-color:#22c55e}.gate-yellow{border-color:#f59e0b}.gate-red{border-color:#ef4444}
+@media(max-width:760px){.start-screen h1{font-size:30px}.mode-choice-grid,.mode-choice-grid.compact,.simple-question-grid,.advanced-card-grid,.review-list,.progress-rail{grid-template-columns:1fr!important}.mode-header{display:block}.primary-row{display:block}.mode-choice{min-height:auto}.progress-rail{position:sticky;top:0}.progress-rail span{text-align:left}.mode-panel{padding:14px}.wizard-step-card{padding:12px}}
+
 </style></head><body><div class="wrap">{content}</div></body></html>"""
 
 def defaults():
@@ -3008,9 +3012,86 @@ def form_page(vals=None):
   <div class='grid'>{body}</div>
 </details>""")
     sections=''.join(blocks)
-    content_template="""<div class='hero'><div class='card'><span class='mode-badge'>Простой мастер по умолчанию</span><h1>Интеграционный инструктор v5.0.9</h1><p class='small'>Совместимость регрессии: Интеграционный инструктор v4.9.8</p><p>Это мастер, который переводит бизнес-ситуацию в архитектурный черновик: какой паттерн выбрать, где нужны статусы, Outbox/Inbox, retry, DLQ, кэш/read model, DWH или legacy-контур.</p><div class='simple-strip'><div class='simple-step'><b>1. Ситуация</b><span>что делает пользователь или система</span></div><div class='simple-step'><b>2. Риски</b><span>деньги, клиент, регуляторика</span></div><div class='simple-step'><b>3. Черновик</b><span>системы и шаги создаются автоматически</span></div><div class='simple-step'><b>4. Отчёт</b><span>решение, риски, MVP и production</span></div></div></div><div class='card'><h2>Как пользоваться</h2><p><b>Новичок:</b> заполните верхний блок из простых вопросов и нажмите “Собрать черновик”.<br><b>Сложный кейс:</b> нажмите “Расширенный режим: тоже пошагово”. Он не требует знания терминов: каждый блок объясняет, что именно описать и зачем.</p>%%RECENT_HTML%%</div></div>
+    content_template="""<section class='start-screen card' id='startScreen'>
+  <h1>Что нужно сделать?</h1>
+  <p class='small mobile-hide'>Простой мастер по умолчанию · Интеграционный инструктор v4.9.8</p><p class='muted'>Выберите один путь. На первом экране скрыты raw matrices, ADR, capacity, observability, rollout и полный Markdown — они доступны позже в экспертном режиме и результате.</p>
+  <div class='mode-choice-grid' role='radiogroup' aria-label='Выбор режима работы'>
+    <label class='mode-choice selected'><input type='radio' name='start_choice' value='quick' checked><b>Быстро разобрать задачу</b><span>Вставьте задачу своими словами — система сама соберёт черновик.</span></label>
+    <label class='mode-choice'><input type='radio' name='start_choice' value='wizard'><b>Пошагово спроектировать интеграцию</b><span>Ответьте на простые вопросы, без технических терминов.</span></label>
+    <label class='mode-choice'><input type='radio' name='start_choice' value='review'><b>Проверить существующее решение</b><span>Опишите текущую схему — система найдёт риски и улучшения.</span></label>
+    <label class='mode-choice'><input type='radio' name='start_choice' value='advanced'><b>Продвинутый режим</b><span>Карточки систем, связей, контрактов, ошибок, нагрузки и rollout.</span></label>
+    <label class='mode-choice'><input type='radio' name='start_choice' value='expert'><b>Открыть экспертный режим</b><span>Ручное заполнение технических матриц и расширенных параметров.</span></label>
+  </div>
+  <div class='primary-row'><button type='button' class='btn' id='startBtn'>Начать</button></div>
+  %%RECENT_HTML%%
+</section>
+<div class='app-shell is-hidden' id='appShell'>
+  <div class='mode-header card'><div><span class='mode-badge' id='activeModeBadge'>Простой мастер</span><h2 id='activeModeTitle'>Пошаговый мастер проектирования и проверки интеграций</h2><p class='small' id='activeModeHint'>Отвечайте простыми словами. Если не знаете — выбирайте “Не знаю / определить автоматически”.</p></div><button type='button' class='btn ghost' id='backToStart'>← Выбрать другой режим</button></div>
 <form method='POST' action='/generate' class='card' id='mainForm'>
   <input type='hidden' name='preset_name' value=''>
+  <input type='hidden' name='ux_mode' id='uxMode' value='quick'>
+  <div class='progress-rail' id='progressRail'><span class='active'>1. Задача</span><span>2. Участники</span><span>3. Процесс</span><span>4. Ограничения</span><span>5. Риски</span><span>6. Проверка</span><span>7. Результат</span></div>
+  <section class='quick-mode-panel mode-panel' data-mode-panel='quick'>
+    <h2>Очень быстрый режим</h2><p class='small'>Опишите задачу обычным языком. Это не формирует отчёт сразу: сначала будет экран “Я понял задачу так”.</p>
+    <label class='field'><span>Опишите задачу своими словами</span><textarea name='quick_description' id='quickDescription' placeholder='Например: сервис договоров должен передавать изменения в сервис отчётности через Kafka, но перед отправкой нужно получить данные клиента из другого REST-сервиса.'></textarea></label>
+    <div class='simple-question-grid'>
+      <label class='field'><span>Что нужно сделать?</span><select name='quick_goal'><option value='design_new'>Спроектировать новое решение</option><option value='check_existing'>Проверить существующее решение</option><option value='analyze_case'>Разобрать кейс</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
+      <label class='field'><span>Как быстро нужен результат?</span><select name='quick_speed'><option value='immediate'>Сразу</option><option value='seconds_minutes'>В течение секунд/минут</option><option value='daily'>Раз в день</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
+      <label class='field'><span>Есть Kafka или брокер?</span><select name='quick_broker'><option value='yes'>Да</option><option value='no'>Нет</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
+      <label class='field'><span>Есть внешняя система?</span><select name='quick_external'><option value='yes'>Да</option><option value='no'>Нет</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
+      <label class='field'><span>Нагрузка</span><select name='quick_load'><option value='low'>Низкая</option><option value='medium'>Средняя</option><option value='high'>Высокая</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
+    </div>
+    <div class='primary-row'><button type='button' class='btn' id='quickDraftBtn'>Разобрать задачу</button></div>
+  </section>
+  <section class='wizard-mode-panel mode-panel' data-mode-panel='wizard'>
+    <h2>Простой пошаговый мастер</h2><p class='small'>Основной режим: карточки, один главный CTA и возможность выбрать “Не знаю / определить автоматически”.</p>
+    <div class='wizard-step-card'><h3>Шаг 1. Тип задачи</h3><div class='mode-choice-grid compact'>
+      <label class='mode-choice selected'><input type='radio' name='wizard_task_type' value='data_between_services' checked><b>Передать данные между сервисами</b></label>
+      <label class='mode-choice'><input type='radio' name='wizard_task_type' value='external'>Получить данные из внешней системы</label>
+      <label class='mode-choice'><input type='radio' name='wizard_task_type' value='kafka_event'>Отправить событие в Kafka</label>
+      <label class='mode-choice'><input type='radio' name='wizard_task_type' value='webhook'>Обработать callback/webhook</label>
+      <label class='mode-choice'><input type='radio' name='wizard_task_type' value='multi_source'>Собрать данные из нескольких сервисов</label>
+      <label class='mode-choice'><input type='radio' name='wizard_task_type' value='check_existing'>Проверить существующее решение</label>
+      <label class='mode-choice'><input type='radio' name='wizard_task_type' value='dwh'>Спроектировать DWH/витрину</label>
+      <label class='mode-choice'><input type='radio' name='wizard_task_type' value='complex_process'>Разобрать сложный бизнес-процесс</label>
+      <label class='mode-choice'><input type='radio' name='wizard_task_type' value='unknown'>Не знаю, помочь выбрать</label>
+    </div></div>
+    <div class='wizard-step-card'><h3>Шаг 2. Участники</h3><div class='simple-question-grid'>
+      <label class='field'><span>Источник данных — название сервиса</span><input name='wizard_source_name' value='Source Service'></label>
+      <label class='field'><span>Что в нём хранится</span><input name='wizard_source_data' value='данные сущности'></label>
+      <label class='field'><span>Можно ли его менять?</span><select name='constraint_source_change'><option value='yes'>Да</option><option value='no'>Нет</option><option value='partial'>Минимально/частично</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
+      <label class='field'><span>Получатель данных — название сервиса</span><input name='wizard_target_name' value='Target Service'></label>
+      <label class='field'><span>Что он должен получить</span><input name='wizard_target_data' value='событие/статус/документ'></label>
+      <label class='field'><span>Как быстро нужны данные?</span><select name='wizard_target_speed'><option value='immediate'>Сразу</option><option value='seconds'>Секунды</option><option value='minutes'>Минуты</option><option value='hours'>Часы</option><option value='daily'>Раз в день</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
+    </div><div class='chip-group'><label class='chip'><input type='checkbox' name='wizard_extra_systems' value='сервис обогащения'> сервис обогащения</label><label class='chip'><input type='checkbox' name='wizard_extra_systems' value='внешняя система'> внешняя система</label><label class='chip'><input type='checkbox' name='wizard_extra_systems' value='DWH'> DWH</label><label class='chip'><input type='checkbox' name='wizard_extra_systems' value='UI/клиент'> UI/клиент</label><label class='chip'><input type='checkbox' name='wizard_extra_systems' value='брокер сообщений'> брокер сообщений</label><label class='chip'><input type='checkbox' name='wizard_extra_systems' value='legacy-система'> legacy-система</label><label class='chip'><input type='checkbox' name='wizard_extra_systems' value='база данных'> база данных</label><label class='chip'><input type='checkbox' name='wizard_extra_systems' value='файловый обмен'> файловый обмен</label></div><button type='button' class='btn ghost' disabled title='Добавление дополнительных карточек будет включено в следующем UX-итерации'>Добавить ещё систему</button></div>
+    <div class='wizard-step-card'><h3>Шаг 3. Цепочка процесса</h3><label class='field'><span>Выберите шаблон</span><select name='wizard_process_template' id='wizardProcessTemplate'><option value='rest'>Service A → REST → Service B</option><option value='kafka'>Service A → Kafka → Service B</option><option value='rest_enrichment_kafka'>Service A → REST enrichment → Kafka → Service B</option><option value='webhook'>External system → callback/webhook → our service</option><option value='api_composition'>User → API → several services → final status</option><option value='dwh'>Service A → DWH → reporting</option><option value='file'>File/SFTP → processing → target system</option><option value='cdc'>DB polling/CDC → consumer → target system</option><option value='auto'>Не знаю / определить автоматически</option></select></label><div class='visual-chain' id='visualChain'>Source Service ↓ REST ↓ Target Service</div><button type='button' class='btn ghost' disabled title='Редактирование цепочки доступно через шаблон и экспертные матрицы'>Добавить шаг</button></div>
+    <div class='wizard-step-card'><h3>Шаг 4. Ограничения</h3><div class='simple-question-grid'>
+      <label class='field'><span>Можно ли создавать новый сервис?</span><select name='constraint_new_service'><option value='yes'>Да</option><option value='no'>Нет</option><option value='partial'>Частично</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
+      <label class='field'><span>Можно ли менять контракт?</span><select name='constraint_contract'><option value='yes'>Да</option><option value='no'>Нет</option><option value='partial'>Частично</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
+      <label class='field'><span>Можно ли добавить новый Kafka topic?</span><select name='constraint_kafka_topic'><option value='yes'>Да</option><option value='no'>Нет</option><option value='partial'>Частично</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
+      <label class='field'><span>Нужен ли аудит действий?</span><select name='constraint_audit'><option value='yes'>Да</option><option value='no'>Нет</option><option value='partial'>Частично</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
+    </div></div>
+    <div class='wizard-step-card'><h3>Шаг 5. Риски</h3><div class='simple-question-grid'>
+      <label class='field'><span>Может ли одно и то же событие прийти повторно?</span><select name='risk_duplicate_event'><option value='yes'>Да</option><option value='no'>Нет</option><option value='maybe'>Возможно</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
+      <label class='field'><span>Можно ли потерять событие между БД и Kafka?</span><select name='risk_lost_event'><option value='yes'>Да</option><option value='no'>Нет</option><option value='maybe'>Возможно</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
+      <label class='field'><span>Может ли внешний сервис не ответить?</span><select name='risk_external_timeout'><option value='yes'>Да</option><option value='no'>Нет</option><option value='maybe'>Возможно</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
+      <label class='field'><span>Важно ли понимать всю цепочку запроса?</span><select name='risk_traceability'><option value='yes'>Да</option><option value='no'>Нет</option><option value='maybe'>Возможно</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
+      <label class='field'><span>Нужно ли потом сверять полноту данных?</span><select name='risk_reconciliation'><option value='yes'>Да</option><option value='no'>Нет</option><option value='maybe'>Возможно</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
+      <label class='field'><span>Что делать с ошибочными сообщениями?</span><select name='risk_bad_messages'><option value='yes'>Отправлять в разбор</option><option value='no'>Не знаю</option><option value='maybe'>Возможно</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
+    </div><div class='primary-row'><button type='button' class='btn' id='wizardReviewBtn'>Проверить понимание</button></div></div>
+  </section>
+  <section class='review-mode-panel mode-panel' data-mode-panel='review'>
+    <h2>Проверить существующее решение</h2><p class='small'>Опишите текущую схему простыми словами. Система включит audit-mode, найдёт риски и предложит безопасные улучшения без обязательного перепроектирования.</p>
+    <label class='field'><span>Опишите текущую схему</span><textarea name='review_description' placeholder='Например: consumer читает Kafka, фильтрует события по полю и сохраняет только нужные в Postgres.'></textarea></label>
+    <div class='simple-question-grid'>
+      <label class='field'><span>Что нужно проверить в первую очередь?</span><select name='review_focus'><option value='risks'>Риски и production gaps</option><option value='load'>Нагрузку и lag</option><option value='contracts'>Контракты и совместимость</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
+      <label class='field'><span>Есть Kafka или брокер?</span><select name='review_broker'><option value='unknown'>Не знаю / определить автоматически</option><option value='yes'>Да</option><option value='no'>Нет</option></select></label>
+    </div>
+    <div class='primary-row'><button type='button' class='btn' id='reviewDraftBtn'>Проверить понимание</button></div>
+  </section>
+  <section class='advanced-mode-panel mode-panel' data-mode-panel='advanced'><h2>Продвинутый режим через карточки</h2><p class='small'>Для системного аналитика: карточки маппятся в systems_matrix, target_integration_matrix, process_steps, contract_matrix, error_matrix, capacity_matrix, observability_matrix и rollout_migration_matrix.</p><div class='advanced-card-grid'><div class='advanced-card'>Системы <span>Нужно уточнить</span></div><div class='advanced-card'>Интеграционные связи <span>Экспертная настройка</span></div><div class='advanced-card'>Шаги процесса <span>Заполнено из мастера</span></div><div class='advanced-card'>Контракты <span>Нужно уточнить</span></div><div class='advanced-card'>Ошибки и retry <span>Есть риск</span></div><div class='advanced-card'>Нагрузка и SLA <span>Необязательно</span></div><div class='advanced-card'>Мониторинг <span>Нужно уточнить</span></div><div class='advanced-card'>Rollout <span>Нужно уточнить</span></div><div class='advanced-card'>ADR <span>Будет сформирован</span></div><div class='advanced-card'>Тест-кейсы <span>Будут сформированы</span></div></div></section>
+  <section class='expert-intro mode-panel' data-mode-panel='expert'><h2>Экспертный режим</h2><p>Этот режим предназначен для ручного редактирования технических матриц. Обычно достаточно простого мастера.</p><button type='button' class='btn secondary' data-switch-mode='wizard'>Вернуться к простому мастеру</button></section>
+  <section class='review-screen card is-hidden' id='reviewScreen'><h2>Я понял задачу так</h2><div id='reviewContent'></div><div class='report-actions'><button type='button' class='btn' id='confirmGenerateBtn'>Всё верно, сформировать решение</button><button type='button' class='btn secondary' id='editDraftBtn'>Поправить</button><button type='button' class='btn ghost' data-switch-mode='expert'>Открыть экспертный режим</button></div></section>
   <div class='ultra-panel simple-only' id='ultraPanel'>
     <span class='mode-badge'>Ультракороткий путь</span>
     <h2>Решение по минимуму данных — как на собеседовании</h2>
@@ -3169,6 +3250,7 @@ def form_page(vals=None):
     <button class='btn' type='submit' id='stickySubmitBtn'>Сформировать отчёт</button>
   </div>
 </form>
+</div>
 <script>
 (function() {
   const select = document.querySelector('select[name="task_type"]');
@@ -3513,14 +3595,326 @@ ${entity}Status | ${systems[1] || 'Core'} | ${systems[2] || 'Consumer/DWH'} | co
     setField('preset_name', uc);
     const summary=document.getElementById('beginnerSummary'); if(summary) summary.innerHTML = 'Ультракороткий черновик собран: <b>'+scenarioLabel(p.scenario)+'</b>. Можно формировать отчёт даже без заполнения остальных полей.';
   }
-  function generateUltraShort(){ fillUltraShortOnly(); document.getElementById('mainForm').submit(); }
+  function generateUltraShort(){ fillUltraShortOnly(); showReview(); }
   window.fillUltraShortOnly = fillUltraShortOnly;
   window.generateUltraShort = generateUltraShort;
+
+  // Progressive disclosure UX: start screen -> quick/wizard/advanced/expert -> review -> existing generator.
+  let progressiveConfirmed = false;
+  const startScreen = document.getElementById('startScreen');
+  const appShell = document.getElementById('appShell');
+  const uxModeInput = document.getElementById('uxMode');
+  const modeBadge = document.getElementById('activeModeBadge');
+  const modeTitle = document.getElementById('activeModeTitle');
+  const modeHint = document.getElementById('activeModeHint');
+  const reviewScreen = document.getElementById('reviewScreen');
+  const reviewContent = document.getElementById('reviewContent');
+  const modeMeta = {
+    quick:['Очень быстрый режим','Быстро разобрать задачу','Вставьте описание и 3–5 простых ответов. Затем проверьте экран “Я понял задачу так”.'],
+    wizard:['Простой мастер','Пошагово спроектировать интеграцию','Идите по шагам: задача, участники, процесс, ограничения, риски, проверка, результат.'],
+    review:['Проверка решения','Проверить существующее решение','Опишите текущую схему; мастер заполнит поля аудита и покажет риски.'],
+    advanced:['Продвинутый режим','Карточки системного аналитика','Карточки преобразуются в старые internal fields и матрицы.'],
+    expert:['Экспертный режим','Raw matrices и ручная настройка','Все прежние технические поля сохранены. Можно вернуться к простому мастеру.']
+  };
+  function switchProgressiveMode(mode){
+    if(uxModeInput) uxModeInput.value = mode;
+    document.body.classList.remove('quick-mode','wizard-mode','advanced-mode','expert-mode','review-mode');
+    document.body.classList.add(mode+'-mode');
+    if(mode === 'expert') document.body.classList.add('power-mode'); else document.body.classList.remove('power-mode');
+    document.querySelectorAll('[data-mode-panel]').forEach(p=>p.classList.toggle('active-mode-panel', p.dataset.modePanel===mode || (mode==='advanced' && p.dataset.modePanel==='wizard')));
+    const m = modeMeta[mode] || modeMeta.wizard;
+    if(modeBadge) modeBadge.textContent = m[0]; if(modeTitle) modeTitle.textContent = m[1]; if(modeHint) modeHint.textContent = m[2];
+    if(startScreen) startScreen.classList.add('is-hidden'); if(appShell) appShell.classList.remove('is-hidden');
+    progressiveConfirmed = false;
+  }
+  function currentWizardSummary(){
+    const source = (document.querySelector('[name="wizard_source_name"]')||{}).value || 'Source Service';
+    const target = (document.querySelector('[name="wizard_target_name"]')||{}).value || 'Target Service';
+    const templateEl = document.getElementById('wizardProcessTemplate');
+    const templateText = templateEl ? templateEl.options[templateEl.selectedIndex].text : 'Не знаю / определить автоматически';
+    const quickText = (document.getElementById('quickDescription')||{}).value || (document.querySelector('[name="review_description"]')||{}).value || getField('business_goal') || 'задача будет уточнена из выбранных ответов';
+    const unknowns = Array.from(document.querySelectorAll('select')).filter(x=>(x.value||'').includes('unknown')).map(x=>x.closest('.field')?.querySelector('span,label')?.textContent?.trim() || x.name).slice(0,8);
+    const risks = Array.from(document.querySelectorAll('[name^="risk_"]')).filter(x=>['yes','maybe','unknown'].includes(x.value)).map(x=>x.closest('.field')?.querySelector('span')?.textContent?.trim() || x.name).slice(0,8);
+    const defaults = templateText.includes('Kafka') ? 'Outbox, Inbox/idempotency, eventId, correlationId, retry, DLQ, replay, contract tests, monitoring.' : templateText.includes('REST') ? 'timeout, retry/backoff, circuit breaker, fallback/error mapping, correlationId, SLA dependency.' : 'safe-by-default controls: idempotency, retry limit, monitoring, owner, rollback/replay where needed.';
+    return `<div class='review-list'><div><b>Цель</b><p>${escapeHtml(quickText)}</p></div><div><b>Источник</b><p>${escapeHtml(source)}</p></div><div><b>Получатель</b><p>${escapeHtml(target)}</p></div><div><b>Цепочка процесса</b><p>${escapeHtml(templateText)}</p></div><div><b>Найденные риски</b><p>${escapeHtml(risks.join('; ') || 'Дубли, таймауты, невалидный контракт и отсутствие мониторинга будут проверены safe-by-default.')}</p></div><div><b>Что будет сформировано</b><p>internal matrices, Markdown report, ADR, test cases, risks, production checklist, ZIP/export.</p></div><div><b>Что неизвестно</b><p>${escapeHtml(unknowns.join('; ') || 'Нет явных ответов “не знаю”.')}</p></div><div><b>Defaults применены</b><p>${escapeHtml(defaults)}</p></div></div>`;
+  }
+  function escapeHtml(s){ return String(s||'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function showReview(){
+    if(reviewContent) reviewContent.innerHTML = currentWizardSummary();
+    if(reviewScreen) { reviewScreen.classList.remove('is-hidden'); reviewScreen.scrollIntoView({behavior:'smooth',block:'start'}); }
+    progressiveConfirmed = false;
+  }
+  document.querySelectorAll('input[name="start_choice"]').forEach(r=>r.addEventListener('change',()=>{
+    document.querySelectorAll('.mode-choice').forEach(c=>c.classList.toggle('selected', !!c.querySelector('input:checked')));
+  }));
+  const startBtn = document.getElementById('startBtn'); if(startBtn) startBtn.addEventListener('click',()=>{
+    const choice = (document.querySelector('input[name="start_choice"]:checked')||{}).value || 'quick';
+    if(choice==='expert') switchProgressiveMode('expert'); else if(choice==='quick') switchProgressiveMode('quick'); else if(choice==='review') switchProgressiveMode('review'); else if(choice==='advanced') switchProgressiveMode('advanced'); else switchProgressiveMode('wizard');
+    if(choice==='review') { setRadio('wizard_task_type','check_existing'); simpleSet('task_type','audit_existing_solution'); }
+  });
+  const backToStart = document.getElementById('backToStart'); if(backToStart) backToStart.addEventListener('click',()=>{ if(appShell) appShell.classList.add('is-hidden'); if(startScreen) startScreen.classList.remove('is-hidden'); });
+  document.querySelectorAll('[data-switch-mode]').forEach(b=>b.addEventListener('click',()=>switchProgressiveMode(b.dataset.switchMode)));
+  const quickDraftBtn = document.getElementById('quickDraftBtn'); if(quickDraftBtn) quickDraftBtn.addEventListener('click',()=>{ fillUltraShortOnly(); showReview(); });
+  const wizardReviewBtn = document.getElementById('wizardReviewBtn'); if(wizardReviewBtn) wizardReviewBtn.addEventListener('click',()=>{ makeBeginnerDraft(); showReview(); });
+  const reviewDraftBtn = document.getElementById('reviewDraftBtn'); if(reviewDraftBtn) reviewDraftBtn.addEventListener('click',()=>{ simpleSet('task_type','audit_existing_solution'); showReview(); });
+  const confirmGenerateBtn = document.getElementById('confirmGenerateBtn'); if(confirmGenerateBtn) confirmGenerateBtn.addEventListener('click',()=>{ progressiveConfirmed = true; document.getElementById('mainForm').submit(); });
+  const editDraftBtn = document.getElementById('editDraftBtn'); if(editDraftBtn) editDraftBtn.addEventListener('click',()=>{ if(reviewScreen) reviewScreen.classList.add('is-hidden'); });
+  const form = document.getElementById('mainForm'); if(form) form.addEventListener('submit',(e)=>{
+    if((uxModeInput||{}).value !== 'expert' && !progressiveConfirmed){ e.preventDefault(); showReview(); }
+  });
+  const processTemplate = document.getElementById('wizardProcessTemplate'); if(processTemplate) processTemplate.addEventListener('change',()=>{
+    const map={rest:'Source Service\n↓\nREST\n↓\nTarget Service',kafka:'Source Service\n↓\nOutbox\n↓\nKafka\n↓\nTarget Consumer',rest_enrichment_kafka:'Source Service\n↓\nREST enrichment\n↓\nOutbox\n↓\nKafka\n↓\nTarget Consumer',webhook:'External system\n↓\ncallback/webhook\n↓\nOur service',api_composition:'User\n↓\nAPI\n↓\nSeveral services\n↓\nFinal status',dwh:'Source Service\n↓\nDWH\n↓\nReporting',file:'File/SFTP\n↓\nProcessing\n↓\nTarget system',cdc:'DB polling/CDC\n↓\nConsumer\n↓\nTarget system',auto:'Source Service\n↓\nНе знаю / определить автоматически\n↓\nTarget Service'};
+    const vc=document.getElementById('visualChain'); if(vc) vc.textContent=map[processTemplate.value]||map.auto;
+  });
 
 })();
 </script>"""
     content = content_template.replace('%%RECENT_HTML%%', recent_html).replace('%%SECTIONS%%', sections)
     return HTML.replace('{content}', content)
+
+
+# ---------- progressive wizard mapping layer ----------
+UNKNOWN_MARKERS = {'unknown', 'dont_know', 'auto', 'не знаю', 'не знаю / определить автоматически', ''}
+
+CASE_DEFAULTS = {
+    'rest_sync': {
+        'channels': ['rest'],
+        'defaults': ['timeout', 'retry with backoff', 'error mapping', 'circuit breaker', 'fallback', 'correlationId', 'rate limit', 'SLA dependency'],
+        'situations': ['api_composition'],
+    },
+    'kafka_async': {
+        'channels': ['kafka'],
+        'defaults': ['eventId', 'correlationId', 'idempotency', 'inbox', 'outbox', 'retry', 'DLQ', 'schema compatibility', 'consumer lag monitoring', 'replay strategy', 'contract tests'],
+        'situations': ['highload_write_stream', 'one_source_many_consumers'],
+    },
+    'rest_enrichment_kafka': {
+        'channels': ['rest', 'kafka'],
+        'defaults': ['outbox до публикации', 'enrichment worker/process manager', 'timeout на enrichment', 'retry/backoff', 'DLQ', 'status table', 'correlationId', 'идемпотентность публикации и обработки', 'стратегия при недоступности enrichment service'],
+        'situations': ['data_enrichment', 'highload_write_stream', 'unstable_external_provider'],
+    },
+    'webhook': {
+        'channels': ['webhook', 'rest'],
+        'defaults': ['request validation', 'signature validation', 'idempotency', 'retry policy', 'callback status', 'DLQ/manual queue', 'audit log', 'replay/manual resend'],
+        'situations': ['webhook_callback', 'external_api_dependency'],
+    },
+    'dwh': {
+        'channels': ['etl', 'sftp'],
+        'defaults': ['freshness SLA', 'batch window', 'lineage', 'reconciliation', 'data quality checks', 'duplicate detection', 'late arriving data handling', 'monitoring of load completeness'],
+        'situations': ['dwh_reporting', 'batch_processing'],
+    },
+    'external': {
+        'channels': ['rest'],
+        'defaults': ['timeout', 'retry limit', 'circuit breaker', 'fallback/degraded mode', 'external SLA risk', 'error mapping', 'monitoring', 'manual recovery'],
+        'situations': ['external_api_dependency', 'unstable_external_provider'],
+    },
+    'legacy_file': {
+        'channels': ['sftp', 'etl'],
+        'defaults': ['file validation', 'duplicate file handling', 'checksum/control totals', 'archive', 'retry/reprocess', 'manual correction', 'reconciliation'],
+        'situations': ['legacy_integration', 'batch_processing'],
+    },
+}
+
+PROCESS_TEMPLATES = {
+    'rest': ['Source Service', 'REST', 'Target Service'],
+    'kafka': ['Source Service', 'Outbox', 'Kafka', 'Target Consumer'],
+    'rest_enrichment_kafka': ['Source Service', 'REST enrichment', 'Outbox', 'Kafka', 'Target Consumer'],
+    'webhook': ['External system', 'callback/webhook', 'Our service', 'Inbox/status'],
+    'api_composition': ['User', 'API', 'Several services', 'Final status'],
+    'dwh': ['Source Service', 'DWH', 'Reporting'],
+    'file': ['File/SFTP', 'Processing', 'Target system'],
+    'cdc': ['DB polling/CDC', 'Consumer', 'Target system'],
+    'auto': ['Source Service', 'Integration step', 'Target Service'],
+}
+
+RISK_MAPPING = {
+    'duplicate_event': ['idempotency', 'inbox', 'eventId/idempotencyKey'],
+    'lost_event': ['outbox', 'риск потери события', 'тест-кейс на атомарность'],
+    'external_timeout': ['timeout', 'retry with backoff', 'circuit breaker', 'fallback/degraded mode', 'DLQ/manual recovery'],
+    'partial_processing': ['status table', 'compensation', 'manual recovery'],
+    'traceability': ['correlationId', 'traceId', 'structured logs', 'observability'],
+    'reconciliation': ['reconciliation', 'data quality checks', 'report completeness checks'],
+    'bad_messages': ['DLQ', 'retry limit', 'manual recovery', 'owner of failed messages'],
+    'stale_data': ['freshness SLA', 'stale-data label', 'fallback policy'],
+    'contract_change': ['contract versioning', 'schema compatibility', 'contract tests'],
+    'replay_old_events': ['replay strategy', 'backfill window', 'idempotent replay'],
+    'processing_status': ['business statuses', 'status history', 'stuck status monitoring'],
+    'manual_errors': ['manual queue', 'runbook', 'error owner'],
+}
+
+PRODUCTION_BLOCKING_GAPS = [
+    ('idempotency', 'нет idempotency', 'Дубли могут повторно выполнить опасное действие.', 'Риски → дубли или Эксперт → error_matrix/contract_matrix'),
+    ('retry limit', 'нет retry limit', 'Бесконечные повторы перегрузят зависимости.', 'Продвинутый → Ошибки и retry'),
+    ('DLQ', 'нет DLQ/manual recovery', 'Проблемные сообщения негде разбирать.', 'Продвинутый → Ошибки и retry'),
+    ('correlationId', 'нет correlationId', 'Нельзя быстро найти всю цепочку.', 'Риски → трассировка или Контракты'),
+    ('monitoring', 'нет мониторинга', 'Команда не увидит деградацию.', 'Продвинутый → Мониторинг'),
+    ('contract tests', 'нет contract tests', 'Изменение контракта сломает потребителей.', 'Продвинутый → Контракты'),
+    ('rollback', 'нет rollback', 'Нельзя безопасно откатиться.', 'Продвинутый → Rollout'),
+    ('replay', 'нет replay', 'Нельзя восстановить пропущенный период.', 'Продвинутый → Rollout'),
+    ('owner', 'нет владельца ошибок', 'Ошибки останутся без ответственного.', 'Продвинутый → Ошибки и retry'),
+    ('invalid contract', 'нет обработки невалидного контракта', 'Плохие сообщения будут падать непредсказуемо.', 'Продвинутый → Контракты/Ошибки'),
+    ('external unavailable', 'нет стратегии при недоступности внешнего сервиса', 'Внешняя зависимость остановит процесс.', 'Ограничения/Риски → внешний сервис'),
+    ('reconciliation', 'нет сверки полноты данных для batch/DWH', 'Потери в выгрузке останутся незамеченными.', 'Продвинутый → Мониторинг/DWH'),
+    ('duplicate', 'нет контроля дублей', 'Данные могут задвоиться.', 'Риски → событие может прийти дважды'),
+]
+
+def _raw_first(raw, name, default=''):
+    val = raw.get(name, [default])
+    return val[0] if isinstance(val, list) else val
+
+def _raw_many(raw, name):
+    val = raw.get(name, [])
+    return val if isinstance(val, list) else [val]
+
+def _is_unknown(value):
+    return str(value or '').strip().lower() in UNKNOWN_MARKERS
+
+def normalize_wizard_draft(raw):
+    """Normalize quick/wizard/advanced card inputs without changing legacy field names."""
+    mode = _raw_first(raw, 'ux_mode', 'wizard')
+    text = _raw_first(raw, 'quick_description') or _raw_first(raw, 'review_description') or _raw_first(raw, 'business_goal')
+    task_type = _raw_first(raw, 'wizard_task_type') or _raw_first(raw, 'quick_goal', 'design_new')
+    # Browser submits hidden wizard fields from the same form. In quick/review mode these defaults
+    # must not override the user's free-text description, otherwise Kafka cases can be misread as REST.
+    template = 'auto' if mode in ['quick', 'review'] else _raw_first(raw, 'wizard_process_template', 'auto')
+    source = _raw_first(raw, 'wizard_source_name', 'Source Service') or 'Source Service'
+    target = _raw_first(raw, 'wizard_target_name', 'Target Service') or 'Target Service'
+    extra = _raw_many(raw, 'wizard_extra_systems') + _raw_many(raw, 'advanced_system_role')
+    risk_answers = {k.replace('risk_', ''): _raw_first(raw, k) for k in raw if k.startswith('risk_')}
+    constraints = {k.replace('constraint_', ''): _raw_first(raw, k) for k in raw if k.startswith('constraint_')}
+    unknowns = []
+    for name in ['quick_goal', 'quick_speed', 'quick_broker', 'quick_external', 'quick_load', 'wizard_process_template']:
+        if _is_unknown(_raw_first(raw, name)): unknowns.append(name)
+    unknowns += [f'risk_{k}' for k, v in risk_answers.items() if _is_unknown(v)]
+    unknowns += [f'constraint_{k}' for k, v in constraints.items() if _is_unknown(v)]
+    if template == 'auto':
+        lower = text.lower()
+        broker = _raw_first(raw, 'quick_broker', 'unknown')
+        speed = _raw_first(raw, 'quick_speed', 'unknown')
+        external = _raw_first(raw, 'quick_external', 'unknown')
+        has_kafka = 'kafka' in lower or 'кафк' in lower or broker == 'yes'
+        has_rest_enrichment = 'rest' in lower and ('обогат' in lower or 'обогащ' in lower or 'enrich' in lower or 'перед этим' in lower or 'before' in lower)
+        if has_kafka and has_rest_enrichment: template = 'rest_enrichment_kafka'
+        elif has_kafka: template = 'kafka'
+        elif 'webhook' in lower or 'callback' in lower or 'коллбек' in lower: template = 'webhook'
+        elif 'dwh' in lower or 'витрин' in lower or 'раз в день' in lower or speed == 'daily': template = 'dwh'
+        elif 'sftp' in lower or 'file' in lower or 'файл' in lower: template = 'file'
+        elif external == 'yes': template = 'rest'
+        else: template = 'rest'
+    return {
+        'mode': mode,
+        'text': text,
+        'task_type': task_type,
+        'template': template,
+        'source': source,
+        'target': target,
+        'source_data': _raw_first(raw, 'wizard_source_data', 'данные сущности'),
+        'target_data': _raw_first(raw, 'wizard_target_data', 'результат/статус'),
+        'target_speed': _raw_first(raw, 'wizard_target_speed', _raw_first(raw, 'quick_speed', 'unknown')),
+        'extra_systems': [x for x in extra if x],
+        'risk_answers': risk_answers,
+        'constraints': constraints,
+        'unknowns': sorted(set(unknowns)),
+    }
+
+def draft_case_key(draft):
+    t = draft.get('template', 'auto')
+    if t in ['kafka']: return 'kafka_async'
+    if t == 'rest_enrichment_kafka': return 'rest_enrichment_kafka'
+    if t == 'webhook': return 'webhook'
+    if t == 'dwh': return 'dwh'
+    if t == 'file': return 'legacy_file'
+    if draft.get('task_type') in ['external', 'external_partner']: return 'external'
+    return 'rest_sync'
+
+def map_draft_to_internal_fields(draft, base=None):
+    """Map progressive UI draft to the existing internal matrices used by Engine.generate."""
+    f = dict(base or {})
+    key = draft_case_key(draft)
+    defaults_for_case = CASE_DEFAULTS.get(key, CASE_DEFAULTS['rest_sync'])
+    safe_defaults = list(defaults_for_case['defaults'])
+    risk_controls = []
+    for risk, answer in draft.get('risk_answers', {}).items():
+        if str(answer).lower() in ['yes', 'maybe', 'unknown', 'dont_know', 'auto', 'да', 'возможно', 'не знаю']:
+            risk_controls.extend(RISK_MAPPING.get(risk, []))
+    all_controls = []
+    for item in safe_defaults + risk_controls:
+        if item not in all_controls: all_controls.append(item)
+    source = draft.get('source') or 'Source Service'
+    target = draft.get('target') or 'Target Service'
+    chain = PROCESS_TEMPLATES.get(draft.get('template'), PROCESS_TEMPLATES['auto'])
+    channel = 'Kafka' if key in ['kafka_async', 'rest_enrichment_kafka'] else ('Webhook' if key == 'webhook' else ('SFTP/ETL' if key in ['dwh', 'legacy_file'] else 'REST'))
+    mode = 'async' if key in ['kafka_async', 'rest_enrichment_kafka', 'webhook', 'dwh', 'legacy_file'] else 'sync'
+    f['business_goal'] = draft.get('text') or f.get('business_goal') or f'{source} должен передать {draft.get("source_data", "данные")} в {target}.'
+    f['task_type'] = 'audit_existing_solution' if draft.get('mode') == 'review' or draft.get('task_type') in ['check_existing', 'audit_existing_solution'] else f.get('task_type', 'new_from_scratch')
+    situations = list(dict.fromkeys((f.get('business_situations') or []) + defaults_for_case.get('situations', [])))
+    f['business_situations'] = situations
+    f['allowed_channels'] = list(dict.fromkeys(defaults_for_case.get('channels', ['rest'])))
+    f['systems_matrix'] = '\n'.join([
+        f'{source} | источник данных | TBD | critical | {channel} | {"non_blocking" if mode == "async" else "blocking"} | {draft.get("target_speed", "уточнить")}',
+        f'{target} | получатель данных | TBD | important | {channel} | {"non_blocking" if mode == "async" else "blocking"} | {draft.get("target_speed", "уточнить")}',
+    ] + [f'{x} | дополнительная система | TBD | important | unknown | non_blocking | уточнить' for x in draft.get('extra_systems', [])])
+    f['target_integration_matrix'] = f'{source} | {target} | {channel} | {mode} | business change | {draft.get("target_data", "payload")} | Contract.v1 | {"30s" if mode == "async" else "3s"} | yes/backoff | 3 | {"yes" if mode == "async" else "no"} | eventId+correlationId | service auth | уточнить | TBD'
+    f['process_steps'] = '\n'.join([f'{i} | {i+1} | {"root" if i == 0 else i} | {step} | {source if i == 0 else target if i == len(chain)-1 else step} | {channel if step in ["REST", "Kafka", "callback/webhook"] else "internal"} | input | output | {"30s" if mode == "async" else "3s"} | yes | DLQ/manual | {"non_blocking" if mode == "async" else "blocking"} | TBD' for i, step in enumerate(chain)])
+    f['contract_matrix'] = f'{"EVENT" if mode == "async" else "API"} | Contract.v1 | {source} | {target} | {"topic.contract.v1" if mode == "async" else "/integration/v1"} | {"entityId as key" if mode == "async" else "POST"} | entityId,eventId,correlationId,idempotencyKey | metadata | validation_error,duplicate,timeout | v1 | backward'
+    f['error_matrix'] = '\n'.join([
+        'timeout | external/target dependency | blocking | yes | retry with backoff + circuit breaker | TBD',
+        'duplicate | consumer/API | non_blocking | no | ignore by idempotencyKey/eventId | TBD',
+        'invalid_contract | contract boundary | blocking | no | reject/quarantine + alert owner | TBD',
+        'retry_exhausted | integration worker | non_blocking | yes | DLQ/manual recovery | TBD',
+    ])
+    f['capacity_matrix'] = f'main_flow | уточнить | уточнить | 5 | 50 | уточнить | 100% | 3 | 2 | уточнить | {draft.get("target_speed", "уточнить")} | 24h | 24h | уточнить'
+    f['observability_matrix'] = '\n'.join([
+        'success_total | integration flow | drop to zero | yes | TBD | Integration dashboard',
+        'error_total | integration flow | > 0 for 15m | yes | TBD | Failure dashboard',
+        'consumer_lag | Kafka consumer | > 10000 events | yes | Platform | Kafka dashboard' if 'Kafka' in channel else 'external_timeout_rate | REST dependency | > 5% for 15m | yes | TBD | Dependency dashboard',
+        'dlq_size | DLQ/manual queue | > 0 for 15m | yes | Operations | Failure dashboard',
+    ])
+    f['rollout_migration_matrix'] = 'P1 | pilot | feature toggle/canary | rollback toggle | no | compare status/counts | no critical gaps | TBD\nP2 | full rollout | phased rollout | rollback + replay failed period | 24h | compare business metrics | duplicates/losses = 0 | TBD'
+    f['process_flow_matrix'] = 'S1 | root | request accepted | принять и провалидировать | API | S2 | E_VALIDATION | E_TIMEOUT | none | no\nS2 | S1 | data ready | передать downstream | Integration | S3 | E_DELIVERY | E_RETRY | retry/DLQ | yes'
+    f['business_rules_matrix'] = 'BR1 | пришёл дубль | не выполнять действие повторно | S2 | TBD | DUPLICATE_IGNORED\nBR2 | retry исчерпан | создать manual task/DLQ | S2 | TBD | DELIVERY_FAILED'
+    f['fields'] = 'entityId:uuid|required|unique|indexed, idempotencyKey:string|unique, correlationId:string|indexed, status:string|required|indexed, updatedAt:datetime|required'
+    f['statuses'] = 'ACCEPTED,PROCESSING,DONE,FAILED,MANUAL_REVIEW'
+    f['final_statuses'] = 'DONE,FAILED'
+    if key in ['kafka_async', 'rest_enrichment_kafka']:
+        f['delivery'] = 'at_least_once'; f['replay'] = 'yes'; f['existing_capabilities'] = ['outbox', 'inbox', 'dlq', 'monitoring']
+    if key == 'dwh':
+        f['dwh'] = 'batch'; f['freshness_requirement'] = 'minutes_hours'; f['data_quality_lineage_matrix'] = f'{draft.get("target_data", "Entity")} | {source} | DWH | count/checksum/schema validation | daily | reconciliation report | Data owner'
+    if key == 'webhook':
+        f['webhook_signature_required'] = 'unknown'; f['webhook_raw_body_preserved'] = 'unknown'; f['manual_recovery'] = 'yes'
+    f['compromise_comment'] = 'Progressive wizard defaults: ' + ', '.join(all_controls) + ('. Нужно уточнить: ' + ', '.join(draft.get('unknowns', [])) if draft.get('unknowns') else '')
+    f['wizard_missing_information'] = ', '.join(draft.get('unknowns', []))
+    f['wizard_defaults_applied'] = ', '.join(all_controls)
+    f['wizard_decision_summary'] = f'{source} → ' + ' → '.join(chain[1:-1]) + f' → {target}; режим {mode}, канал {channel}.'
+    f['wizard_production_gate'] = compute_production_gate_from_controls(all_controls, key)
+    return f
+
+def compute_production_gate_from_controls(controls, case_key='rest_sync'):
+    text = ' '.join(controls).lower()
+    gaps = []
+    for needle, title, risk, where in PRODUCTION_BLOCKING_GAPS:
+        if needle.lower() not in text:
+            if needle == 'reconciliation' and case_key not in ['dwh', 'legacy_file']:
+                continue
+            if needle == 'external unavailable' and case_key not in ['external', 'rest_enrichment_kafka', 'webhook', 'rest_sync']:
+                continue
+            gaps.append({'title': title, 'risk': risk, 'fix': 'Добавить контроль: '+needle, 'where': where})
+    if any(g['title'] in ['нет idempotency', 'нет DLQ/manual recovery', 'нет мониторинга'] for g in gaps):
+        verdict = 'RED'; text_label = 'Нельзя в production без исправлений'
+    elif gaps:
+        verdict = 'YELLOW'; text_label = 'Можно только с ограничениями / feature toggle'
+    else:
+        verdict = 'GREEN'; text_label = 'Можно пилотировать'
+    return {'verdict': verdict, 'text': text_label, 'gaps': gaps}
+
+def apply_progressive_ui_mapping(raw, form):
+    # Expert mode is a hard bypass: browsers submit hidden wizard fields from the same form,
+    # but manual raw matrices must never be overwritten when ux_mode=expert.
+    if _raw_first(raw, 'ux_mode') == 'expert':
+        return form
+    if not any(k.startswith(('quick_', 'wizard_', 'risk_', 'constraint_', 'advanced_')) or k == 'ux_mode' for k in raw):
+        return form
+    draft = normalize_wizard_draft(raw)
+    return map_draft_to_internal_fields(draft, form)
 
 def parse_post(body):
     raw=parse_qs(body); f={}
@@ -3531,7 +3925,7 @@ def parse_post(body):
             else:
                 f[qid]=raw.get(qid,[default])[0]
     f['preset_name']=raw.get('preset_name',[''])[0]
-    return f
+    return apply_progressive_ui_mapping(raw, f)
 
 def yaml_scalar(v):
     text=str(v).replace('"','\\"')
@@ -3889,7 +4283,20 @@ def result_page(res,rid,fname,bundle_name=None):
     summary_html=''.join(f'<li>{escape(x)}</li>' for x in simple_result_summary(res))
     vars_html=''.join(f'<li><b>{escape(ru_label(v["name"]))}</b> — оценка {v["score"]}%, {escape(v["complexity"])}</li>' for v in res['variants'][:4])
     pattern_html=''.join(f'<span class="pill">{escape(p)}</span>' for p in rec.get('patterns',[])[:8]) or '<span class="pill">паттерны не выбраны</span>'
-    content=f'''<div class="card"><h1>Итог простыми словами</h1><p class="muted">Сначала смотрите эти блоки. Полный Markdown-отчёт ниже — для ADR, разработки и архитектурного ревью.</p>
+    gate=res.get('production_gate') or {}
+    wizard_gate=res.get('wizard_production_gate') or (res.get('ctx') or {}).get('wizard_production_gate') or {}
+    gate_level=str(gate.get('level') or wizard_gate.get('verdict') or 'YELLOW').upper()
+    gate_class={'GREEN':'gate-green','YELLOW':'gate-yellow','RED':'gate-red'}.get(gate_level,'gate-yellow')
+    gate_title={'GREEN':'Можно пилотировать','YELLOW':'Можно только с ограничениями / feature toggle','RED':'Нельзя в production без исправлений'}.get(gate_level, gate.get('text') or wizard_gate.get('text') or 'Нужно уточнить')
+    def _gate_item_html(x):
+        if isinstance(x, dict):
+            return '<li><b>'+escape(str(x.get('title','gap')))+'</b> — '+escape(str(x.get('risk',''))) + ('<br><span class="small">Как исправить: '+escape(str(x.get('fix',''))) + '; где настроить: '+escape(str(x.get('where','')))+'</span>' if x.get('fix') or x.get('where') else '') + '</li>'
+        return f'<li>{escape(str(x))}</li>'
+    engine_gaps=list(gate.get('blocking_gaps') or gate.get('required_before_prod') or [])
+    wizard_gaps=list((wizard_gate or {}).get('gaps') or [])
+    gate_gaps=''.join(_gate_item_html(x) for x in (engine_gaps + wizard_gaps)[:10]) or '<li>Блокирующие gaps не выявлены, подтвердите это на архитектурном ревью.</li>'
+    tabs_html='<div class="result-tabs"><span class="result-tab">Кратко</span><span class="result-tab">Архитектура</span><span class="result-tab">Процесс</span><span class="result-tab">Контракты</span><span class="result-tab">Ошибки</span><span class="result-tab">Тесты</span><span class="result-tab">Rollout</span><span class="result-tab">ADR</span><span class="result-tab">Markdown</span><span class="result-tab">Экспорт</span></div>'
+    content=f'''<div class="card"><h1>Кратко</h1><p class="small mobile-hide">Итог простыми словами</p><p class="muted">Результат начинается с простого вывода. Полный Markdown доступен только во вкладке/блоке “Полный технический отчёт”.</p>{tabs_html}
     <div class="simple-result-grid">
       <div class="simple-result"><h3>Что проектировать</h3><h2>{escape(ru_label(rec.get('name','')))}</h2>{pattern_html}</div>
       <div class="simple-result"><h3>Можно ли использовать вывод</h3><div class="score">{res['readiness']['score']}%</div><p>{escape(decision_state)}</p><p class="small">Доверие: {res['readiness'].get('confidence', res['readiness']['score'])}%</p></div>
@@ -3897,9 +4304,11 @@ def result_page(res,rid,fname,bundle_name=None):
     </div>
     {service_chain_html(res)}
     <h3>Выжимка для новичка</h3><ul class="todo-list">{summary_html}</ul>
+    <div class="production-gate {gate_class}"><h3>Готовность к production: {escape(gate_level)} — {escape(gate_title)}</h3><p class="small">Проверены blocking gaps: idempotency, retry limit, DLQ/manual recovery, correlationId, monitoring, contract tests, rollback, replay, owner, invalid contract handling, external dependency strategy, reconciliation и duplicate control.</p><ul class="todo-list">{gate_gaps}</ul></div>
+    <h3>Минимально безопасный вариант / Production-вариант / Целевой вариант</h3><ul class="todo-list"><li>Минимально безопасный вариант: закрыть blocking gaps, включить ограниченный retry, владельца ошибок и наблюдаемость.</li><li>Production-вариант: добавить rollout, replay/recovery drill, contract tests, dashboard и runbook.</li><li>Целевой вариант: перейти к рекомендованной архитектуре с явными контрактами, lineage и эксплуатационными SLO.</li></ul>
     <h3>Альтернативы</h3><ul class="todo-list">{vars_html}</ul>
     <div class="report-actions"><a class="btn" href="/download?file={escape(fname)}">Скачать Markdown</a>{f'<a class="btn" href="/download?file={escape(bundle_name)}">Скачать пакет документов ZIP</a>' if bundle_name else ''}<a class="btn secondary" href="/run?id={escape(rid)}">Открыть run</a><a class="btn secondary" href="/">Новая генерация</a></div></div>
-    <details class="full-report card"><summary>Показать полный технический отчёт / ADR</summary><div class="result">{escape(res['markdown'])}</div></details>'''
+    <details class="full-report card"><summary>Показать полный технический отчёт / Markdown / ADR</summary><div class="result">{escape(res['markdown'])}</div></details>'''
     return HTML.replace('{content}', content)
 
 class Handler(BaseHTTPRequestHandler):
