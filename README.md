@@ -34,6 +34,12 @@
 - **Trade-off / compromise mode**: отчёт разделяет целевую архитектуру, реалистичный v1, остаточные риски и Phase 2 hardening.
 - **Компромиссные варианты для enrichment-before-Kafka**: embedded/platform publisher при запрете нового сервиса; CDC/polling export при read-only source.
 
+## Требования
+
+- Python 3.11+ для запуска приложения.
+- Для regression suite нужен `pytest`; его можно установить из `requirements-dev.txt`.
+- Внешние Python-зависимости для самого приложения не требуются: сервер, SQLite-хранилище и генерация отчётов работают на стандартной библиотеке Python.
+
 ## Запуск
 
 ```bash
@@ -46,26 +52,32 @@ python integration_architect_pro.py
 http://127.0.0.1:8110/
 ```
 
+Переменные окружения для запуска и деплоя:
+
+| Переменная | По умолчанию | Назначение |
+| --- | --- | --- |
+| `HOST` | `0.0.0.0` | Адрес bind для web-сервера. Для контейнера должен быть `0.0.0.0`. |
+| `PORT` | `8110` | Порт HTTP-сервера. |
+| `MAX_POST_BYTES` | `2097152` | Максимальный размер POST-запроса к `/generate`. |
+
+Runtime-файлы создаются локально и не должны попадать в репозиторий:
+
+- `.integration_architect_pro/*.sqlite3` — SQLite-история запусков;
+- `generated_integration_architect_reports/` — Markdown/ZIP-отчёты.
+
 ## Проверка
 
 ```bash
+python -m pip install -r requirements-dev.txt
 python -m py_compile integration_architect_pro.py
-pytest -q
-# ожидаемо: 134 passed
-python test_integration_architect.py
-python test_sa_full_coverage.py
-python test_rank_guard.py
-python test_v48_product_sections.py
+python -m pytest -q
 ```
 
-Ожидаемый результат:
+Ожидаемый результат для текущего пакета: `144 passed`.
 
-```text
-18/18 regression tests passed
-16/16 full SA scenario tests passed
-3/3 rank guard tests passed
-2/2 v4.8 product section tests passed
-```
+## CI
+
+В репозитории есть GitHub Actions workflow `.github/workflows/ci.yml`. Он устанавливает Python 3.11, ставит dev-зависимости, компилирует приложение и запускает весь regression suite при `push`, `pull_request` и ручном `workflow_dispatch`.
 
 ## Как пользоваться
 
@@ -117,7 +129,7 @@ python test_v48_product_sections.py
 - **Multi-tenant noisy neighbor**: добавлен отдельный риск для общего consumer pool / shared topic, где один крупный tenant создаёт lag остальным. Проверяются tenantId partitioning, quotas, separate consumer pools, fair scheduling, backpressure и lag per tenant metrics.
 - **Privacy + legal hold / retention exception**: при удалении ПДн теперь отдельно подсвечивается, что часть данных может быть нельзя физически удалить. Нужно разделять deletion, anonymization/pseudonymization, retention exception register, evidence per system и audit trail.
 - **Production packaging**: добавлен Dockerfile, запуск через HOST/PORT, bind по умолчанию `0.0.0.0`, ограничение размера POST через `MAX_POST_BYTES` и healthcheck.
-- **Regression suite расширен до 138 тестов**: добавлены adversarial-тесты на active-active financial write, IoT stream ingestion, multi-tenant noisy neighbor и privacy legal hold.
+- **Regression suite расширен до 144 тестов**: добавлены adversarial-тесты на active-active financial write, IoT stream ingestion, multi-tenant noisy neighbor, privacy legal hold и специализированные production-кейсы.
 
 ## Запуск в Docker
 
@@ -125,6 +137,14 @@ python test_v48_product_sections.py
 docker build -t integration-architect-pro .
 docker run --rm -p 8110:8110 integration-architect-pro
 ```
+
+Для переопределения порта:
+
+```bash
+docker run --rm -e PORT=8080 -p 8080:8080 integration-architect-pro
+```
+
+Dockerfile уже содержит `EXPOSE 8110` и healthcheck на `/`. `.dockerignore` исключает кэш, локальную SQLite-базу и сгенерированные отчёты из build context.
 
 После запуска открыть:
 
