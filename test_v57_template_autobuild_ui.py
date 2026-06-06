@@ -1,7 +1,7 @@
 import shutil
 
 import pytest
-from playwright.sync_api import sync_playwright
+sync_playwright = pytest.importorskip('playwright.sync_api').sync_playwright
 
 from integration_architect_pro import form_page
 

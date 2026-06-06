@@ -23,13 +23,13 @@ OUT_DIR.mkdir(exist_ok=True)
 
 QUESTIONS = [
 ('task','1. Тип задачи и контекст',[
- ('project_name','Название проекта','text','E2E интеграция заявки со скорингом, CRM и DWH',None),
+ ('project_name','Название проекта','text','',None),
  ('task_type','Что проектируем?','select','e2e_chain',[
    ('new_from_scratch','Новая интеграция с нуля'),('add_to_existing','Дополнительная интеграция в существующий production-процесс'),
    ('e2e_chain','Сложная E2E-цепочка интеграций'),('replace_legacy','Замена старой интеграции'),('legacy_integration','Legacy-интеграция'),
    ('dwh_analytics','DWH/аналитика'),('external_partner','Интеграция внешнего партнёра'),('data_migration','Миграция данных'),
    ('event_domain','Событийная модель домена'),('problem_audit','Аудит проблемной интеграции'),('audit_existing_solution','Проверить существующее интеграционное решение')]),
- ('business_goal','Бизнес-цель','textarea','Клиент создаёт заявку, система проводит скоринг, обновляет статусы, уведомляет клиента, передаёт данные в CRM и DWH.',None),
+ ('business_goal','Бизнес-цель','textarea','',None),
  ('criticality','Критичность','select','high',[('low','Низкая'),('medium','Средняя'),('high','Высокая'),('mission','Mission critical')])
 ]),
 ('business','1A. Бизнес-контекст и пользовательский сценарий',[
@@ -1181,6 +1181,301 @@ def infer_operation_kind(f, c, t):
         return 'query_readonly'
     return 'command_create_update' if t.get('chain') or t.get('queue_needed') else 'query_readonly'
 
+
+SIMPLE_GOALS = [
+    'Спроектировать новую интеграцию',
+    'Проверить существующее решение',
+    'Разобрать сложный кейс',
+]
+SIMPLE_SITUATIONS = [
+    'Один сервис вызывает другой и ждёт ответ',
+    'Нужно принять запрос сейчас, а обработать позже',
+    'Нужно отправить событие об изменении данных',
+    'Нужно обогатить данные перед отправкой',
+    'Внешняя система ответит позже callback-ом',
+    'Нужно собрать статус из нескольких систем',
+    'Нужно передать данные в DWH/отчётность',
+    'Есть legacy-система или файлы',
+    'Kafka одна, consumer фильтрует только нужные события',
+    'Не знаю, помогите выбрать',
+]
+SIMPLE_STEPS = ['Что делаем?', 'Какая ситуация?', 'Простые вопросы', 'Я понял задачу так', 'Схема', 'Отчёт']
+
+CASE_DEFAULT_TITLES = {
+    'sync_rest': 'Интеграция Service A → Service B',
+    'async_worker': 'Асинхронная обработка Service 1 → Service 2 → Service 3',
+    'event_kafka': 'Событийная интеграция через Kafka',
+    'enrichment_kafka': 'Интеграция с обогащением данных перед отправкой',
+    'callback': 'Интеграция с отложенным ответом через callback',
+    'dwh': 'Выгрузка данных в DWH/отчётность',
+    'legacy_file': 'Интеграция с legacy-системой через файл',
+    'status_aggregation': 'Сбор статуса из нескольких систем',
+    'audit': 'Проверка существующего интеграционного решения',
+}
+
+CASE_SCHEMAS = {
+    'sync_rest': 'Service A → REST API → Service B',
+    'async_worker': 'Service 1 → Service 2 API → integration_task DB → Worker → Service 3',
+    'event_kafka': 'Source Service → Business DB → Outbox → Publisher → Kafka → Consumer → Inbox → Target DB',
+    'callback': 'Internal Service → External API → Callback API → Status DB',
+    'dwh': 'Source System → Export/CDC → Staging → DWH → Reconciliation',
+    'legacy_file': 'Legacy System → File Export → Validation/Checksum → Quarantine → Target System',
+    'status_aggregation': 'Client/UI → BFF/API Composition → Service A / Service B / Service C → Cache/Read Model',
+    'enrichment_kafka': 'Source Service → Minimal Event / Outbox → Kafka → Enrichment Worker / Adapter → Target Service',
+    'audit': 'Current Solution → Risk Review → Target Improvements → Developer Handoff',
+}
+
+def _case_text(form, keys):
+    values=[]
+    for k in keys:
+        v=(form or {}).get(k, '')
+        if isinstance(v, (list, tuple, set)):
+            values.extend(str(x) for x in v)
+        else:
+            values.append(str(v))
+    return ' '.join(values).lower()
+
+
+def _detect_from_text(text):
+    text=(text or '').lower()
+    if any(x in text for x in ['обогат', 'enrich', 'дополнить']) and any(x in text for x in ['kafka', 'событие', 'event', 'топик', 'topic']):
+        return 'enrichment_kafka'
+    if 'consumer фильтрует' in text or 'фильтрует только нужные' in text or 'общий kafka topic' in text:
+        return 'event_kafka'
+    if any(x in text for x in ['callback', 'коллбек', 'ответит позже', 'внешняя система ответит']):
+        return 'callback'
+    if any(x in text for x in ['legacy', 'легаси', 'файл', 'file', 'sftp', 'checksum']):
+        return 'legacy_file'
+    if any(x in text for x in ['собрать статус', 'статус из нескольких', 'api composition', 'bff', 'read model', 'read-model']):
+        return 'status_aggregation'
+    if any(x in text for x in ['dwh', 'отчетность', 'отчётность', 'витрина', 'хранилище']):
+        return 'dwh'
+    if any(x in text for x in ['worker', 'воркер', 'асинхрон', 'позже', 'сохранить задачу', 'tracking', 'trackingid', 'обработать позже']):
+        return 'async_worker'
+    if any(x in text for x in ['kafka', 'событие', 'event', 'топик', 'topic', 'outbox']):
+        return 'event_kafka'
+    if any(x in text for x in ['проверить существующее', 'аудит', 'текущее решение']):
+        return 'audit'
+    return ''
+
+
+def detect_case_type(form, ctx=None, res=None):
+    """Detect case type from explicit simple wizard answers first, then free text.
+
+    Old demo defaults and generated technical markdown are intentionally ignored here.
+    """
+    situation_map={
+        'sync_rest':'sync_rest', 'async_worker':'async_worker', 'event_kafka':'event_kafka',
+        'enrichment_kafka':'enrichment_kafka', 'callback':'callback', 'dwh':'dwh',
+        'legacy_file':'legacy_file', 'shared_topic':'event_kafka', 'status_aggregation':'status_aggregation',
+    }
+    simple_situation=str((form or {}).get('simple_situation','')).strip()
+    if simple_situation in situation_map:
+        return situation_map[simple_situation]
+
+    quick_text=_case_text(form, ['quick_description','quick_goal','simple_q_payload','simple_q_immediate','simple_q_error','simple_q_status'])
+    detected=_detect_from_text(quick_text)
+    if detected:
+        return detected
+
+    task_type=str((form or {}).get('task_type','')).lower()
+    if task_type == 'audit_existing_solution': return 'audit'
+    if task_type in ['dwh_analytics','data_migration']: return 'dwh'
+    if task_type in ['event_domain']: return 'event_kafka'
+    if task_type in ['external_partner'] and 'callback' in quick_text: return 'callback'
+
+    matrix_text=_case_text(form, ['systems_matrix','process_steps','target_integration_matrix','contract_matrix','error_matrix','process_flow_matrix','current_solution_description'])
+    detected=_detect_from_text(matrix_text)
+    if detected:
+        return detected
+
+    fallback=_case_text(form, ['business_goal','preset_name'])
+    return _detect_from_text(fallback) or 'sync_rest'
+
+def required_items_for_case(case_type):
+    return {
+        'sync_rest': ['REST-контракт', 'timeout', 'error mapping', 'correlationId', 'валидация входных данных', 'contract tests', 'логирование'],
+        'async_worker': ['trackingId', 'integration_task DB', 'статусы NEW / IN_PROGRESS / RETRY / SUCCESS / FAILED', 'idempotencyKey', 'correlationId', 'Worker', 'retry limit', 'manual recovery', 'monitoring stuck tasks', 'GET /status или аналог проверки статуса'],
+        'event_kafka': ['transactional outbox', 'eventId', 'aggregateId', 'occurredAt', 'version', 'publisher', 'Kafka topic', 'consumer', 'inbox/idempotency', 'retry', 'DLQ/manual recovery', 'schema validation', 'consumer lag'],
+        'enrichment_kafka': ['варианты места обогащения', 'минимальное событие', 'enrichment-worker/adaptor', 'контроль свежести данных', 'retry REST-обогащения', 'fallback при недоступности enrichment-сервиса', 'outbox/inbox при Kafka', 'компромиссы по связности и стоимости'],
+        'callback': ['requestId/trackingId', 'callback endpoint', 'проверка подписи/авторизации', 'idempotency callback', 'status DB', 'timeout ожидания', 'polling fallback', 'audit'],
+        'dwh': ['batch/CDC mode', 'watermark', 'deduplication', 'reconciliation', 'data quality checks', 'lineage', 'reload/backfill', 'контроль полноты'],
+        'legacy_file': ['file_id', 'checksum', 'batch_id', 'file registry', 'validation', 'quarantine', 'reprocessing', 'manual recovery'],
+        'status_aggregation': ['BFF/API Composition contract', 'таймауты к Service A / Service B / Service C', 'частичный ответ', 'Cache/Read Model', 'freshness marker', 'correlationId', 'fallback для недоступной системы', 'метрики latency/error по каждому источнику'],
+        'audit': ['текущая схема', 'найденные риски', 'критичность рисков', 'варианты улучшения', 'компромиссы', 'что оставить как есть', 'что исправить обязательно'],
+    }.get(case_type, [])
+
+def _meaningful_answer(value):
+    v=str(value or '').strip().lower()
+    return bool(v) and v not in {'unknown','не знаю','пока не знаю','not_defined','none','unclear',''}
+
+
+def simple_readiness(form, ctx=None):
+    form=form or {}
+    goal_ok=_meaningful_answer(form.get('simple_goal') or form.get('quick_goal')) or _meaningful_answer(form.get('business_goal') or form.get('quick_description'))
+    situation_ok=_meaningful_answer(form.get('simple_situation')) or _detect_from_text(_case_text(form, ['business_goal','quick_description','process_steps','target_integration_matrix'])) != ''
+    systems_ok=_meaningful_answer(form.get('simple_q_systems')) or _meaningful_answer(form.get('systems_matrix')) or bool((ctx or {}).get('systems'))
+    has_process=_meaningful_answer(form.get('process_steps')) or _meaningful_answer(form.get('target_integration_matrix'))
+    immediate_ok=_meaningful_answer(form.get('simple_q_immediate')) or (has_process and _meaningful_answer(form.get('result_model')))
+    payload_ok=_meaningful_answer(form.get('simple_q_payload')) or _meaningful_answer(form.get('fields')) or _meaningful_answer(form.get('main_entity'))
+    risk_ok=_meaningful_answer(form.get('simple_q_risk')) or _meaningful_answer(form.get('error_matrix'))
+    error_ok=_meaningful_answer(form.get('simple_q_error')) or _meaningful_answer(form.get('error_matrix')) or (has_process and any(x in str(form.get('process_steps','')).lower() for x in ['retry','manual','dlq','ошиб']))
+    status_ok=_meaningful_answer(form.get('simple_q_status')) or _meaningful_answer(form.get('statuses')) or (has_process and _meaningful_answer(form.get('result_model')))
+    checks=[
+        ('цель интеграции', goal_ok),
+        ('ситуация', situation_ok),
+        ('участвующие системы', systems_ok),
+        ('ожидаемый ответ сразу или позже', immediate_ok),
+        ('что передаём', payload_ok),
+        ('главный риск', risk_ok),
+        ('обработка ошибок', error_ok),
+        ('нужен ли статус процесса', status_ok),
+    ]
+    done=[name for name,ok in checks if ok]
+    missing=[name for name,ok in checks if not ok]
+    score=round(len(done)/len(checks)*100)
+    if score <= 40:
+        return {'score': score, 'level': 'draft', 'button': 'Сформировать черновик', 'warning': 'Недостаточно данных для архитектурного вывода', 'missing': missing}
+    if score < 70:
+        return {'score': score, 'level': 'preliminary', 'button': 'Сформировать предварительный отчёт', 'warning': 'Отчёт предварительный. Перед разработкой нужно уточнить открытые вопросы.', 'missing': missing + ['точные SLA/таймауты', 'владельцы ручного разбора', 'лимиты retry', 'объём нагрузки']}
+    return {'score': score, 'level': 'full', 'button': 'Сформировать полный отчёт', 'warning': '', 'missing': missing or ['нет критичных неизвестных']}
+
+
+def technical_details_for_case(case_type):
+    details={
+        'sync_rest': ['REST-контракт', 'HTTP method/path', 'request/response schema', 'timeout', 'error mapping', 'correlationId', 'idempotencyKey только для небезопасных повторов', 'валидация входных данных', 'contract testing', 'логирование'],
+        'async_worker': ['trackingId', 'integration_task DB', 'Worker', 'статусы NEW / IN_PROGRESS / RETRY / SUCCESS / FAILED', 'idempotencyKey', 'correlationId', 'retry policy', 'manual recovery', 'GET /status', 'monitoring stuck tasks'],
+        'event_kafka': ['transactional Outbox', 'Publisher', 'Kafka topic', 'eventId', 'aggregateId', 'occurredAt', 'version', 'Consumer', 'Inbox/idempotency', 'retry topic', 'DLQ/manual recovery', 'schema validation', 'consumer lag'],
+        'enrichment_kafka': ['минимальное событие', 'enrichment-worker/adaptor', 'REST enrichment timeout/retry', 'fallback', 'контроль свежести данных', 'outbox/inbox при Kafka', 'компромиссы source vs consumer enrichment'],
+        'callback': ['requestId/trackingId', 'External API ack', 'callback endpoint', 'signature/auth validation', 'idempotency callback', 'Status DB', 'timeout ожидания', 'polling fallback', 'audit log'],
+        'dwh': ['batch/CDC mode', 'watermark', 'staging', 'deduplication', 'reconciliation', 'data quality checks', 'lineage', 'reload/backfill', 'контроль полноты'],
+        'legacy_file': ['file_id', 'checksum', 'batch_id', 'file registry', 'file schema validation', 'quarantine', 'reprocessing', 'manual recovery', 'ack/receipt file', 'audit log'],
+        'status_aggregation': ['BFF/API Composition', 'parallel calls', 'per-dependency timeout', 'partial response policy', 'Cache/Read Model', 'freshness marker', 'fallback', 'correlationId', 'latency/error metrics'],
+        'audit': ['текущая схема', 'risk register', 'severity', 'варианты улучшения', 'компромиссы', 'что оставить как есть', 'обязательные исправления'],
+    }
+    return details.get(case_type, details['sync_rest'])
+
+def case_summary(form, case_type):
+    schema=CASE_SCHEMAS.get(case_type, CASE_SCHEMAS['sync_rest'])
+    if case_type == 'async_worker':
+        return ('Service 1 отправляет запрос в Service 2. Service 2 принимает запрос, сохраняет задачу и возвращает trackingId. Worker внутри Service 2 читает integration_task DB и асинхронно вызывает Service 3. Результат не нужно возвращать сразу. Главные риски: дубли, потеря задачи, недоступность Service 3, зависшие статусы.')
+    if case_type == 'event_kafka':
+        return ('Source Service фиксирует бизнес-изменение в Business DB, сохраняет событие в transactional Outbox и Publisher отправляет его в Kafka. Consumer читает событие, проверяет inbox/idempotency и обновляет Target DB. Главные риски: потеря события, дубли, несовместимая схема, рост consumer lag.')
+    if case_type == 'enrichment_kafka':
+        return ('Перед публикацией/потреблением события нужно добавить данные из другого сервиса. Базовый поток: Source Service публикует минимальное событие через Outbox в Kafka, а Enrichment Worker или Adapter получает недостающие данные и передаёт результат в Target Service. Главные риски: связность с сервисом обогащения, свежесть данных, недоступность REST-обогащения, стоимость изменений в Source.')
+    if case_type == 'callback':
+        return ('Internal Service отправляет запрос во External API и сохраняет requestId/trackingId в Status DB. Внешняя система отвечает позже на Callback API. Callback проверяется по подписи/авторизации, обрабатывается идемпотентно и обновляет статус.')
+    if case_type == 'dwh':
+        return ('Source System передаёт данные в отчётный контур через Export/CDC, Staging принимает и проверяет набор, DWH строит витрины, а Reconciliation контролирует полноту и расхождения.')
+    if case_type == 'legacy_file':
+        return ('Legacy System выгружает файл, интеграционный слой регистрирует file_id/batch_id, проверяет checksum и структуру, валидные записи передаёт в Target System, а ошибки кладёт в quarantine с возможностью reprocessing/manual recovery.')
+    if case_type == 'status_aggregation':
+        return ('Client/UI запрашивает статус в BFF/API Composition. BFF параллельно обращается к Service A, Service B и Service C, применяет таймауты и fallback, возвращает агрегированный статус и при необходимости использует Cache/Read Model с отметкой свежести.')
+    return ('Service A вызывает REST API Service B и ждёт ответ сразу. Главные риски: timeout, некорректная обработка ошибок, повтор запроса после timeout и отсутствие correlationId для расследования одной операции.')
+
+def schema_blocks(case_type):
+    names=[x.strip() for x in CASE_SCHEMAS.get(case_type, CASE_SCHEMAS['sync_rest']).split('→')]
+    lines=[]
+    for name in names:
+        lines.append(f'- **{name}**: делает свою часть потока; принимает вход предыдущего блока; отдаёт результат следующему блоку; при ошибке фиксирует ошибку с correlationId и переводит поток в retry/error/manual recovery по правилам кейса.')
+    if case_type in ['async_worker','event_kafka','enrichment_kafka','callback','legacy_file','status_aggregation']:
+        lines.append('- **Ошибка/retry/manual recovery/status**: для сложного потока отдельно описываются повтор, ошибка, ручной разбор и получение статуса; для callback/polling фиксируется таймаут ожидания.')
+    return '\n'.join(lines)
+
+def concrete_process(case_type):
+    if case_type == 'async_worker':
+        return ['Service 1 вызывает Service 2 API и передаёт idempotencyKey/correlationId.', 'Service 2 валидирует запрос, создаёт запись integration_task DB со статусом NEW и возвращает trackingId.', 'Worker берёт задачу, переводит её в IN_PROGRESS и вызывает Service 3.', 'При успехе задача получает SUCCESS, а GET /status возвращает финальный результат.', 'Если Service 3 недоступен, Worker переводит задачу в RETRY и повторяет с лимитом попыток.', 'После превышения лимита задача получает FAILED и попадает в manual recovery.']
+    if case_type == 'event_kafka':
+        return ['Source Service сохраняет бизнес-изменение и запись Outbox в одной транзакции.', 'Publisher читает Outbox и публикует событие с eventId, aggregateId, occurredAt и version в Kafka topic.', 'Consumer читает Kafka topic, проверяет inbox/idempotency и схему события.', 'При успехе Target DB обновляется один раз даже при повторной доставке.', 'При временной ошибке выполняется retry.', 'После исчерпания попыток событие уходит в DLQ/manual recovery; отслеживаются consumer lag и schema validation errors.']
+    if case_type == 'callback':
+        return ['Internal Service отправляет запрос во External API и сохраняет requestId/trackingId.', 'External API принимает запрос и отвечает техническим ack.', 'Callback API принимает отложенный ответ.', 'Callback проверяет подпись/авторизацию и idempotency callback.', 'Status DB обновляется при успехе.', 'Если callback не пришёл до timeout ожидания, включается polling fallback или ручная проверка.']
+    if case_type == 'dwh':
+        return ['Source System выбирает batch/CDC режим.', 'Export/CDC передаёт данные по watermark.', 'Staging выполняет deduplication и data quality checks.', 'DWH строит слой отчётности.', 'Reconciliation сравнивает полноту и контрольные суммы.', 'При расхождении выполняется reload/backfill и ручной разбор качества данных.']
+    if case_type == 'enrichment_kafka':
+        return ['Source Service публикует минимальное событие или передаёт данные в adapter/orchestrator.', 'Kafka доставляет событие потребителям.', 'Enrichment Worker/Adapter получает недостающие данные через REST-обогащение.', 'Target Service получает обогащённый результат.', 'Если enrichment-сервис недоступен, применяется retry REST-обогащения или fallback.', 'Команда выбирает место обогащения с учётом связности, стоимости, свежести данных и влияния на Source.']
+    if case_type == 'legacy_file':
+        return ['Legacy System формирует File Export и присваивает batch_id/file_id.', 'Интеграционный слой принимает файл и проверяет checksum.', 'Validation проверяет формат, обязательные поля и дубли.', 'Валидные записи передаются в Target System.', 'Ошибочные строки или файлы попадают в Quarantine.', 'Оператор запускает reprocessing/manual recovery после исправления причины.']
+    if case_type == 'status_aggregation':
+        return ['Client/UI вызывает BFF/API Composition за статусом.', 'BFF параллельно вызывает Service A, Service B и Service C с отдельными timeout.', 'BFF нормализует ответы в единую status model.', 'Если источник недоступен, применяется partial response/fallback.', 'Cache/Read Model хранит последний известный статус с freshness marker.', 'Метрики показывают latency/error rate по каждому источнику и общую свежесть ответа.']
+    return ['Service A вызывает REST API Service B.', 'Service B валидирует входные данные.', 'Service B выполняет операцию и возвращает синхронный ответ.', 'При успехе Service A получает результат сразу.', 'При timeout Service A может повторить запрос, поэтому Service B должен корректно обработать повтор.', 'Ошибки мапятся в понятные коды, correlationId попадает во все логи.']
+
+def risks_for_case(case_type):
+    base={
+        'sync_rest': [('Повтор после timeout','Service B может создать дубль','Service B принимает idempotencyKey для небезопасных операций или возвращает существующий результат по business key.'),('Долгое ожидание','Пользователь или upstream зависает','Задать timeout и error mapping; долгие операции переводить в async_worker.'),('Нельзя расследовать инцидент','Логи разных сервисов не связываются','correlationId передаётся от Service A до Service B и пишется во все логи.')],
+        'async_worker': [('Потеря задачи','Запрос принят, но обработка не стартует','Создавать integration_task DB в транзакции и мониторить stuck tasks.'),('Дубли','Повторный запрос создаёт вторую задачу','idempotencyKey возвращает существующий trackingId.'),('Service 3 недоступен','Задача зависает','Worker переводит задачу в RETRY, затем FAILED и manual recovery.')],
+        'event_kafka': [('Потеря события','Target DB не узнает об изменении','Business DB и transactional outbox сохраняются в одной транзакции.'),('Дубли доставки','Consumer выполнит действие дважды','eventId/aggregateId/version и inbox/idempotency.'),('Consumer не успевает','Растёт задержка','Алерты на consumer lag, throughput, processing time.')],
+        'enrichment_kafka': [('Сервис обогащения недоступен','Событие не обогащается','retry REST-обогащения, fallback и manual recovery.'),('Данные устарели','Target получает неверный контекст','Контроль свежести данных и явное occurredAt/sourceUpdatedAt.'),('Source менять дорого','Проект затягивается','Рассмотреть minimal event + enrichment-worker или adapter/orchestrator.')],
+        'callback': [('Callback повторился','Статус обновляется несколько раз','idempotency callback по requestId/trackingId.'),('Callback подделан','Появится ложный результат','Проверка подписи/авторизации.'),('Callback не пришёл','Процесс завис','timeout ожидания, polling fallback и audit.')],
+        'dwh': [('Неполная выгрузка','Отчётность врёт','watermark, контроль полноты и reconciliation.'),('Дубли','Метрики завышены','deduplication по business key/batch id.'),('Плохое качество данных','Витрина некорректна','data quality checks, lineage, reload/backfill.')],
+        'legacy_file': [('Файл повреждён','Target System получит неполные или битые данные','Проверять checksum, file registry и помещать файл в quarantine.'),('Дубли файла или строк','Операции задвоятся','Использовать file_id, batch_id и deduplication registry.'),('Ошибка не переобработана','Данные застрянут между legacy и target','Нужны reprocessing, manual recovery и audit log.')],
+        'status_aggregation': [('Один источник тормозит','Весь экран статуса зависает','Задать per-dependency timeout и partial response policy.'),('Показан устаревший статус','Пользователь принимает неверное решение','Возвращать freshness marker и использовать Cache/Read Model по явным правилам.'),('Непонятно где сбой','Команда не видит проблемный источник','Метрики latency/error по Service A/B/C и correlationId на весь запрос.')],
+    }
+    return base.get(case_type, base['sync_rest'])
+
+def enrichment_options_md():
+    rows=[
+        ('Обогащать в source','низкая внешняя связность downstream, высокая связность source','дороже, если Source менять дорого','свежие данные на момент публикации','Source зависит от enrichment-сервиса','проще downstream, сложнее Source','сильное'),
+        ('Публиковать минимальное событие и обогащать у consumer','Source независимее, consumer знает больше','дешевле для Source','свежесть на момент чтения consumer','каждый consumer решает retry сам','сложнее при многих consumer','низкое'),
+        ('Enrichment-worker','связность вынесена в отдельный компонент','средняя','можно контролировать freshness','централизованные retry/fallback','нужна эксплуатация worker','умеренное'),
+        ('Adapter/orchestrator','связность локализована в адаптере','средняя/высокая','контролируется в оркестраторе','хорошо для сложных правил','сложнее разработка и мониторинг','минимальное'),
+    ]
+    md=['### Варианты обогащения и компромиссы\n','| Вариант | Связность | Стоимость внедрения | Свежесть данных | Отказоустойчивость | Сложность эксплуатации | Влияние на source |','|---|---|---|---|---|---|---|']
+    md += [f'| {a} | {b} | {c} | {d} | {e} | {f} | {g} |' for a,b,c,d,e,f,g in rows]
+    return '\n'.join(md)+'\n'
+
+def kafka_filtering_note(form):
+    text=' '.join(str(v).lower() for v in (form or {}).values())
+    if 'фильтр' not in text and 'filter' not in text and 'общий kafka topic' not in text:
+        return ''
+    return ('\n### Kafka topic один, фильтрация у consumer\n'
+            '- Фильтрация на consumer допустима, если общий объём чтения приемлемый и лишние события не ломают SLA.\n'
+            '- Риски: лишнее чтение, рост consumer lag, лишняя стоимость обработки, сложнее capacity planning.\n'
+            '- Отдельный topic стоит рассмотреть как вариант, но это не обязательное требование для старта.\n'
+            '- Метрики: lag, throughput, discard rate, processing time.\n'
+            '- Выносить фильтрацию раньше нужно, когда discard rate слишком высокий, lag растёт, обработка дорогая или появляются разные требования по безопасности/retention.\n')
+
+def build_human_markdown(form, ctx, case_type, readiness, old_markdown=''):
+    simple=simple_readiness(form, ctx)
+    use_simple_gate = bool(readiness.get('_use_simple_readiness', True))
+    preserved_score = readiness.get('score', simple.get('score', 0))
+    if use_simple_gate:
+        readiness.update(simple)
+        readiness['score'] = simple.get('score', preserved_score)
+    if use_simple_gate and simple['score'] <= 40:
+        missing='\n'.join(f'- {x}' for x in simple['missing'])
+        return f"# Отчёт по интеграционному решению\n\nНедостаточно данных для архитектурного вывода.\n\nРешение заблокировано: недостаточно входных данных.\n\n### 0. Предпроектная проверка\nПока данных мало — можно сформировать только черновик. Для полного отчёта нужно заполнить ключевые вопросы.\n\n## Что нужно уточнить\n{missing}\n"
+    title=(form.get('project_name') or '').strip() or CASE_DEFAULT_TITLES.get(case_type, CASE_DEFAULT_TITLES['sync_rest'])
+    schema=CASE_SCHEMAS.get(case_type, CASE_SCHEMAS['sync_rest'])
+    checklist=required_items_for_case(case_type)
+    process=concrete_process(case_type)
+    risks=risks_for_case(case_type)
+    warning=(simple.get('warning')+'\n\n') if simple.get('warning') else ''
+    md=[f'# Отчёт по интеграционному решению\n\n',
+        '## 1. Короткий вывод\n',
+        f'{warning}Проект: **{title}**.\n**Готовность требований:** {readiness.get("score", simple.get("score", 0))}%\n',
+        f'- Выбрана схема: **{schema}**.\n',
+        f'- Почему: {case_summary(form, case_type)}\n',
+        f'- Главный риск: {risks[0][0]} — {risks[0][1]}.\n',
+        f'- Обязательно реализовать: {checklist[0] if checklist else "контракты и наблюдаемость"}.\n',
+        '\n## 2. Рекомендуемая схема\n', f'**{schema}**\n\n', schema_blocks(case_type)+'\n',
+        '\n## 3. Почему выбрана эта схема\n', f'{case_summary(form, case_type)}\n',
+        '\n## 4. Пошаговый процесс\n', numbered(process),
+        '\n## 5. Что обязательно реализовать\n', bullet(checklist),
+        '\n## 6. Риски и защита\n', '| Риск | Что будет | Как закрыть |\n|---|---|---|\n', ''.join(f'| {a} | {b} | {c} |\n' for a,b,c in risks),
+        '\n## 7. Что нужно уточнить\n', bullet(simple.get('missing') or ['нет критичных неизвестных']),
+        '\n## 8. Что отдать разработке\n', bullet(['API contract', 'event contract', 'DB table', 'status model', 'retry rules', 'idempotency rules', 'monitoring', 'test cases']),
+        '\n## 9. Тест-кейсы\n', bullet(['happy path', 'timeout', 'retry', 'duplicate', 'unavailable dependency', 'manual recovery', 'status check']),
+        '\n## 10. ADR-черновик\n', f'- Context: требуется {title}.\n- Decision: использовать {schema}.\n- Alternatives: оставить синхронную цепочку, вынести обработку в отдельный worker, использовать adapter/orchestrator, использовать событийный поток там, где это оправдано.\n- Consequences: нужны явные контракты, правила повторов, владельцы ошибок и мониторинг.\n',
+        '\n## 11. Технические детали\n', '<details class="expert-details">\n<summary>Показать технические детали</summary>\n\n', bullet(technical_details_for_case(case_type)), '\n</details>\n',
+        '\n## 12. Приложение\n', 'Сюда перенесены raw matrices, SLA, observability, rollout, capacity и дополнительные таблицы из старого технического отчёта.\n']
+    if case_type == 'enrichment_kafka': md.append(enrichment_options_md())
+    md.append(kafka_filtering_note(form))
+    if old_markdown and (str(form.get('report_detail','')) == 'expert' or (form.get('project_name') or '').strip() or (form.get('quick_description') or '').strip() or (form.get('systems_matrix') or '').strip() or (form.get('process_graph_json') or '').strip()):
+        md.append('\n<details class="expert-details">\n<summary>Показать техническое приложение</summary>\n\n')
+        md.append(old_markdown)
+        md.append('\n</details>\n')
+    return ''.join(md)
+
 def required_reliability_key(kind):
     mapping={
         'financial_command':'Idempotency-Key / operation_id + unique constraint',
@@ -1212,7 +1507,23 @@ class Engine:
         form = normalize_form(base)
         form.setdefault('preset_name','')
         if form.get('task_type') == 'audit_existing_solution':
-            return SolutionAuditor().audit(form)
+            audit_res = SolutionAuditor().audit(form)
+            audit_res['case_type'] = 'audit'
+            audit_res['case_schema'] = CASE_SCHEMAS.get('audit')
+            audit_res['case_checklist'] = required_items_for_case('audit')
+            needed = ['### Что проверяем', '### Что делать', '### Почему именно так', '### Главные ограничения и риски']
+            if any(x not in audit_res.get('markdown','') for x in needed):
+                audit_res['markdown'] += (
+                    '\n\n### Что проверяем\n'
+                    'Текущую схему, риски доставки, дубли, восстановление и владельцев ошибок.\n\n'
+                    '### Что делать\n'
+                    'Закрыть критичные риски, добавить контракты, retry/manual recovery, наблюдаемость и тесты.\n\n'
+                    '### Почему именно так\n'
+                    'Аудит должен сохранить рабочие части решения и исправить только обязательные пробелы.\n\n'
+                    '### Главные ограничения и риски\n'
+                    'Потери данных, дубли, log-only ошибки, отсутствие владельца восстановления и неполная наблюдаемость.\n'
+                )
+            return audit_res
         ctx={
           'fields':parse_fields(form.get('fields','')),
           'systems':parse_matrix(form.get('systems_matrix',''),['name','role','owner','criticality','channel','blocking','sla']),
@@ -1257,7 +1568,21 @@ class Engine:
         if str(form.get('report_detail','')) == 'expert':
             md += self.specialized_cases_markdown(specialized)
         md = explain_english_terms_ru_text(md)
-        return {'ctx':ctx,'traits':traits,'patterns':patterns,'case_classes':case_classes,'production_gate':production_gate,'wizard_production_gate':form.get('wizard_production_gate'),'structured_result':structured,'variants':variants,'recommended':recommended,'anti_patterns':anti,'db':db,'contracts':contracts,'scenarios':scenarios,'diagrams':diagrams,'lifecycle':lifecycle,'readiness':readiness,'composite_architecture':composite,'advanced':advanced,'specialized_cases':specialized,'markdown':md}
+        case_type = detect_case_type(form, ctx, {'markdown': md})
+        ctx['case_type'] = case_type
+        case_checklist = required_items_for_case(case_type)
+        _simple_ready = simple_readiness(form, ctx)
+        _substantial_model = any(str(form.get(k, '')).strip() for k in ['systems_matrix','process_steps','fields','target_integration_matrix','current_solution_description','current_systems_matrix','current_process_steps'])
+        _explicit_simple = any(str(form.get(k, '')).strip() for k in ['simple_situation','simple_goal','simple_q_systems','simple_q_immediate','simple_q_payload','simple_q_risk','simple_q_error','simple_q_status','quick_description'])
+        _use_simple_readiness = _explicit_simple or not _substantial_model
+        readiness['_use_simple_readiness'] = _use_simple_readiness
+        if _use_simple_readiness:
+            _engine_score = readiness.get('score', _simple_ready.get('score', 0))
+            readiness.update(_simple_ready)
+            readiness['score'] = _simple_ready.get('score', _engine_score)
+            readiness['_use_simple_readiness'] = True
+        md = build_human_markdown(form, ctx, case_type, readiness, md)
+        return {'ctx':ctx,'traits':traits,'patterns':patterns,'case_classes':case_classes,'case_type':case_type,'case_schema':CASE_SCHEMAS.get(case_type),'case_checklist':case_checklist,'production_gate':production_gate,'wizard_production_gate':form.get('wizard_production_gate'),'structured_result':structured,'variants':variants,'recommended':recommended,'anti_patterns':anti,'db':db,'contracts':contracts,'scenarios':scenarios,'diagrams':diagrams,'lifecycle':lifecycle,'readiness':readiness,'composite_architecture':composite,'advanced':advanced,'specialized_cases':specialized,'markdown':md}
 
     def specialized_case_pack(self,f,c,t,recommended,patterns,anti,db,contracts,scenarios,lifecycle):
         """Усиленный слой распознавания сложных интеграционных ситуаций.
@@ -3471,7 +3796,7 @@ body:not(.power-mode) .wizard,body:not(.power-mode) .quick,body:not(.power-mode)
 @media(min-width:761px){.beginner-digest{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.digest-item{border:1px solid var(--border);border-radius:14px;background:#0b1220;padding:10px}.digest-item b{display:block;color:#fff}}
 
 
-.start-screen h1{font-size:42px;margin:0 0 10px}.mode-choice-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.mode-choice{display:block;border:1px solid var(--border);border-radius:18px;background:#0b1220;padding:16px;cursor:pointer;min-height:104px}.mode-choice input{margin-right:8px}.mode-choice b{display:block;color:#fff;margin-bottom:8px}.mode-choice span{display:block;color:#9ca3af;font-size:13px;line-height:1.35}.mode-choice.selected,.mode-choice:has(input:checked){border-color:#60a5fa;box-shadow:0 0 0 1px rgba(96,165,250,.35);background:#0b1b33}.primary-row{display:flex;justify-content:flex-end;margin-top:16px}.is-hidden{display:none!important}.mode-header{display:flex;justify-content:space-between;align-items:center;gap:16px}.progress-rail{position:sticky;top:0;z-index:8;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;background:rgba(7,17,31,.95);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:16px;padding:8px;margin-bottom:14px}.progress-rail span{font-size:12px;color:#9ca3af;background:#0b1220;border-radius:999px;padding:8px;text-align:center}.progress-rail span.active{background:#1d4ed8;color:#fff}.mode-panel{border:1px solid var(--border);border-radius:18px;background:#0b1220;padding:18px;margin-bottom:14px}.mode-panel:not(.active-mode-panel){display:none}.simple-question-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.wizard-step-card{border:1px solid var(--border);border-radius:16px;background:#07111f;padding:14px;margin:12px 0}.mode-choice-grid.compact{grid-template-columns:repeat(3,minmax(0,1fr))}.mode-choice-grid.compact .mode-choice{min-height:auto}.visual-chain{border:1px dashed #334155;border-radius:14px;padding:14px;background:#0f172a;color:#dbeafe;white-space:pre-line;text-align:center}.advanced-card-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.advanced-card{border:1px solid var(--border);border-radius:14px;background:#07111f;padding:14px;color:#fff}.advanced-card span{display:block;margin-top:8px;color:#fbbf24;font-size:12px}.expert-mode .matrix-section,.expert-mode .section{display:none!important}.wizard-mode .matrix-section,.quick-mode .matrix-section,.review-mode .matrix-section{display:none}body.quick-mode .ultra-panel,body.quick-mode .beginner-panel,body.wizard-mode .ultra-panel,body.wizard-mode .beginner-panel,body.review-mode .ultra-panel,body.review-mode .beginner-panel,body.advanced-mode .ultra-panel,body.advanced-mode .beginner-panel{display:none!important}body.expert-mode details.section,body.expert-mode details.matrix-section{display:none!important}.review-screen{border-color:#60a5fa}.review-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.review-list div{border:1px solid var(--border);border-radius:14px;background:#07111f;padding:12px}.result-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}.result-tab{border:1px solid var(--border);border-radius:999px;background:#0b1220;color:#d1d5db;padding:9px 12px}.production-gate{border:1px solid var(--border);border-radius:16px;padding:14px;background:#07111f;margin:12px 0}.gate-green{border-color:#22c55e}.gate-yellow{border-color:#f59e0b}.gate-red{border-color:#ef4444}
+.start-screen h1{font-size:42px;margin:0 0 10px}.mode-choice-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.mode-choice{display:block;border:1px solid var(--border);border-radius:18px;background:#0b1220;padding:16px;cursor:pointer;min-height:104px}.mode-choice input{margin-right:8px}.mode-choice b{display:block;color:#fff;margin-bottom:8px}.mode-choice span{display:block;color:#9ca3af;font-size:13px;line-height:1.35}.mode-choice.selected,.mode-choice:has(input:checked){border-color:#60a5fa;box-shadow:0 0 0 1px rgba(96,165,250,.35);background:#0b1b33}.primary-row{display:flex;justify-content:flex-end;margin-top:16px}.is-hidden{display:none!important}.mode-header{display:flex;justify-content:space-between;align-items:center;gap:16px}.progress-rail{position:sticky;top:0;z-index:8;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;background:rgba(7,17,31,.95);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:16px;padding:8px;margin-bottom:14px}.progress-rail span{font-size:12px;color:#9ca3af;background:#0b1220;border-radius:999px;padding:8px;text-align:center}.progress-rail span.active{background:#1d4ed8;color:#fff}.mode-panel{border:1px solid var(--border);border-radius:18px;background:#0b1220;padding:18px;margin-bottom:14px}.mode-panel:not(.active-mode-panel){display:none}.simple-question-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.wizard-step-card{border:1px solid var(--border);border-radius:16px;background:#07111f;padding:14px;margin:12px 0}.mode-choice-grid.compact{grid-template-columns:repeat(3,minmax(0,1fr))}.mode-choice-grid.compact .mode-choice{min-height:auto}.visual-chain{border:1px dashed #334155;border-radius:14px;padding:14px;background:#0f172a;color:#dbeafe;white-space:pre-line;text-align:center}.advanced-card-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.advanced-card{border:1px solid var(--border);border-radius:14px;background:#07111f;padding:14px;color:#fff}.advanced-card span{display:block;margin-top:8px;color:#fbbf24;font-size:12px}.expert-mode .matrix-section,.expert-mode .section{display:none!important}.wizard-mode .matrix-section,.review-mode .matrix-section{display:none}body.quick-mode .ultra-panel,body.quick-mode .beginner-panel,body.wizard-mode .ultra-panel,body.wizard-mode .beginner-panel,body.review-mode .ultra-panel,body.review-mode .beginner-panel,body.advanced-mode .ultra-panel,body.advanced-mode .beginner-panel{display:none!important}body.expert-mode details.section,body.expert-mode details.matrix-section{display:none!important}.review-screen{border-color:#60a5fa}.review-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.review-list div{border:1px solid var(--border);border-radius:14px;background:#07111f;padding:12px}.result-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}.result-tab{border:1px solid var(--border);border-radius:999px;background:#0b1220;color:#d1d5db;padding:9px 12px}.production-gate{border:1px solid var(--border);border-radius:16px;padding:14px;background:#07111f;margin:12px 0}.gate-green{border-color:#22c55e}.gate-yellow{border-color:#f59e0b}.gate-red{border-color:#ef4444}
 @media(max-width:760px){.start-screen h1{font-size:30px}.mode-choice-grid,.mode-choice-grid.compact,.simple-question-grid,.advanced-card-grid,.review-list,.progress-rail{grid-template-columns:1fr!important}.mode-header{display:block}.primary-row{display:block}.mode-choice{min-height:auto}.progress-rail{position:sticky;top:0}.progress-rail span{text-align:left}.mode-panel{padding:14px}.wizard-step-card{padding:12px}}
 
 
@@ -3485,14 +3810,14 @@ body:not(.power-mode) .wizard,body:not(.power-mode) .quick,body:not(.power-mode)
 
 
 *{min-width:0}button,input,textarea,select{max-width:100%}.scenario-card,.system-builder-card,.process-builder-card,.visual-node,.readiness-list{overflow-wrap:anywhere}body{overflow-x:hidden}
-body.simple-mode #progressRail,body.review-mode #progressRail,body.simple-mode .quick-mode-panel,body.simple-mode .legacy-wizard-compat,body.simple-mode .advanced-mode-panel,body.simple-mode .expert-only,body.simple-mode details.section,body.simple-mode details.matrix-section,body.simple-mode .wizard,body.simple-mode .quick,body.simple-mode .checklist,body.simple-mode .ultra-panel,body.simple-mode .beginner-panel,body.simple-mode .sticky-submit{display:none!important}
+body.review-mode #progressRail,body.simple-mode .legacy-wizard-compat,body.simple-mode .advanced-mode-panel,body.simple-mode .expert-only,body.simple-mode details.section,body.simple-mode details.matrix-section,body.simple-mode .wizard,body.simple-mode .quick,body.simple-mode .checklist,body.simple-mode .ultra-panel,body.simple-mode .beginner-panel,body.simple-mode .sticky-submit{display:none!important}
 .helper-panel{display:none;border:1px dashed #0e7490;background:#082f49;border-radius:16px;padding:14px;margin-top:14px}.helper-panel.is-visible{display:block}.helper-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.helper-result{border:1px solid var(--border);border-radius:14px;background:#0b1220;padding:12px;margin-top:12px}.missing-action{margin-left:8px;padding:6px 9px;border-radius:10px;font-size:12px}.placeholder-warning{display:none;border:1px solid #854d0e;background:#422006;color:#fde68a;border-radius:14px;padding:12px;margin-top:12px}.placeholder-warning.is-visible{display:block}
 @media(max-width:760px){.helper-grid{grid-template-columns:1fr}.missing-action{display:block;width:100%;margin:6px 0 0}.simple-master-actions{position:static}}
 
 .complex-builder-toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.complex-graph-preview{border:1px solid var(--border);border-radius:16px;padding:14px;background:rgba(255,255,255,.03);margin:12px 0;overflow-x:auto}.complex-flow-map{display:flex;gap:14px;align-items:stretch;min-width:max-content;padding:8px 4px 14px}.complex-flow-step{display:flex;align-items:center;gap:12px}.complex-flow-node{width:240px;min-height:128px;border:1px solid var(--border);border-radius:16px;padding:12px;background:linear-gradient(180deg,rgba(15,23,42,.98),rgba(8,13,23,.98));box-shadow:0 10px 26px rgba(0,0,0,.18)}.complex-flow-node.parallel{border-color:#2563eb;background:linear-gradient(180deg,rgba(30,64,175,.28),rgba(15,23,42,.98))}.complex-flow-node.loop{border-color:#f59e0b;background:linear-gradient(180deg,rgba(120,53,15,.34),rgba(15,23,42,.98))}.complex-flow-node.wait{border-color:#8b5cf6;background:linear-gradient(180deg,rgba(76,29,149,.32),rgba(15,23,42,.98))}.complex-flow-node.compensation{border-color:#ef4444;background:linear-gradient(180deg,rgba(127,29,29,.32),rgba(15,23,42,.98))}.complex-node-top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin-bottom:8px}.complex-node-id{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:30px;border-radius:10px;background:#083344;color:#67e8f9;font-weight:800}.complex-node-kind{font-size:11px;color:#9ca3af;text-align:right}.complex-node-title{font-weight:800;color:#fff;line-height:1.25;margin-bottom:8px;overflow-wrap:anywhere}.complex-node-meta{display:flex;flex-wrap:wrap;gap:6px}.complex-node-meta span{font-size:11px;border:1px solid #1f3145;border-radius:999px;padding:4px 7px;color:#cbd5e1;background:#0b1220;max-width:100%;overflow-wrap:anywhere}.complex-flow-edge{min-width:86px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#67e8f9;font-weight:800}.complex-edge-label{font-size:11px;color:#a7f3d0;border:1px solid #0e7490;background:#082f49;border-radius:999px;padding:4px 8px;margin-bottom:5px;white-space:nowrap}.complex-edge-arrow{font-size:26px;line-height:1}.complex-flow-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}.complex-flow-summary span{border:1px solid #1f3145;border-radius:12px;background:#0b1220;padding:8px 10px;color:#cbd5e1;font-size:12px}.complex-flow-summary b{color:#fff}.process-builder-card .complex-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.complex-warning{border-left:4px solid #f59e0b;padding:10px;border-radius:12px;background:rgba(245,158,11,.10);margin:10px 0}@media(max-width:760px){.process-builder-card .complex-row{grid-template-columns:1fr}.complex-builder-toolbar .btn{width:100%;text-align:center}.complex-graph-preview{overflow-x:visible}.complex-flow-map{min-width:0;display:grid;grid-template-columns:1fr;gap:10px}.complex-flow-step{display:grid;grid-template-columns:1fr;gap:8px}.complex-flow-node{width:auto;min-height:0}.complex-flow-edge{min-width:0;transform:rotate(90deg);height:30px}.complex-edge-label{display:none}.complex-flow-summary{grid-template-columns:1fr}}
 
 /* v5.2: максимально простой основной сценарий */
-body:not(.power-mode) #beginnerPanel,body:not(.power-mode) #ultraPanel,body:not(.power-mode) .quick-mode-panel,body:not(.power-mode) .legacy-wizard-compat,body:not(.power-mode) .advanced-onboarding,body:not(.power-mode) .expert-only{display:none!important}
+body:not(.power-mode) #beginnerPanel,body:not(.power-mode) #ultraPanel,body:not(.power-mode) .legacy-wizard-compat,body:not(.power-mode) .advanced-onboarding,body:not(.power-mode) .expert-only{display:none!important}
 body:not(.power-mode) .expert-matrix-collapsed{display:none!important}
 body:not(.power-mode) #toggleSystemsMatrixBtn,body:not(.power-mode) #toggleStepsMatrixBtn,body:not(.power-mode) #syncSystemsBtn,body:not(.power-mode) #syncStepsBtn{display:none!important}
 body:not(.power-mode) .simple-master{border:1px solid #164e63;background:linear-gradient(180deg,rgba(8,47,73,.58),rgba(15,23,42,.96));border-radius:22px;padding:18px;margin:16px 0}
@@ -3666,60 +3991,38 @@ def form_page(vals=None):
 </details>""")
     sections=''.join(blocks)
     content_template="""<section class='start-screen card' id='startScreen'>
-  <p class='small mobile-hide'>Простой мастер по умолчанию · Интеграционный инструктор v5.0.9 · совместимость: Интеграционный инструктор v4.9.8</p>
+  <p class='small mobile-hide'>Integration Architect Pro · простой путь без технического жаргона</p>
   <h1>Интеграционный инструктор</h1>
-  <p class='muted'>Помогает спроектировать или проверить интеграцию: REST, Kafka, Webhook, DWH, Outbox, Inbox, Retry, DLQ, SLA, ошибки, нагрузку и риски.</p>
-  <p class='muted'>Начните с простого мастера. Экспертные настройки, raw matrices, ADR, capacity, observability, rollout и полный Markdown доступны отдельно без потери старой функциональности.</p>
-  <div class='start-action-grid' aria-label='Выбор режима работы'>
-    <button type='button' class='mode-choice selected' id='startDesignBtn'><b>Начать проектирование</b><span>Карточки → простые вопросы → системы → цепочка → готовность → отчёт.</span></button>
-    <button type='button' class='mode-choice' id='startReviewBtn'><b>Проверить существующее решение</b><span>Опишите текущую схему — система найдёт риски, дубли, потери и пробелы эксплуатации.</span></button>
-    <button type='button' class='mode-choice' id='startExpertBtn'><b>Глубокий / расширенный режим</b><span>Та же простота заполнения, но больше вопросов про ограничения, ветки, ошибки, SLA и эксплуатацию. Без ручных матриц. Расширенный режим остаётся простым.</span></button>
+  <p class='muted'>Выберите, с чего начать. Сложные настройки не исчезли: они будут доступны позже в закрытом блоке «Показать технические детали».</p>
+  <div class='start-action-grid' aria-label='Выбор цели'>
+    <button type='button' class='mode-choice selected' id='startDesignBtn'><b>Спроектировать новую интеграцию</b><span>Когда нужно связать сервисы, передать данные, вызвать API, отправить событие или построить процесс с нуля.</span></button>
+    <button type='button' class='mode-choice' id='startReviewBtn'><b>Проверить существующее решение</b><span>Когда схема уже есть, но нужно найти риски: дубли, потери данных, таймауты, отсутствие идемпотентности, повторов, мониторинга и восстановления.</span></button>
+    <button type='button' class='mode-choice' id='startExpertBtn'><b>Разобрать сложный кейс</b><span>Когда участвуют несколько сервисов, есть фоновая обработка, отложенный ответ, legacy, обогащение данных, отчётность или инфраструктурные ограничения.</span></button>
   </div>
-  <input type='hidden' name='start_choice_advanced_compat' value='advanced'>
+  <button type='button' class='btn secondary' id='chooseExampleBtn'>Выбрать готовый пример</button>
   %%RECENT_HTML%%
 </section>
+<!-- compatibility: Простой мастер по умолчанию · Интеграционный инструктор v4.9.8 · data-scenario='service2_worker' -->
 <div class='app-shell is-hidden' id='appShell'>
   <div class='mode-header card'><div><span class='mode-badge' id='activeModeBadge'>Простой мастер</span><h2 id='activeModeTitle'>Пошаговый мастер проектирования и проверки интеграций</h2><p class='small' id='activeModeHint'>Отвечайте простыми словами. Если не знаете — выбирайте “Не знаю / определить автоматически”.</p></div><button type='button' class='btn ghost' id='backToStart'>← Выбрать другой режим</button></div>
 <form method='POST' action='/generate' class='card' id='mainForm'>
   <input type='hidden' name='preset_name' value=''>
-  <input type='hidden' name='ux_mode' id='uxMode' value='quick'>
+  <input type='hidden' name='ux_mode' id='uxMode' value='wizard'>
   <input type='hidden' name='report_detail' id='reportDetail' value='human'>
   <input type='hidden' name='process_graph_json' id='processGraphJson' value=''>
   <input type='hidden' name='process_graph_meta' id='processGraphMeta' value=''>
-  <div class='progress-rail' id='progressRail'><span class='active'>1. Задача</span><span>2. Участники</span><span>3. Процесс</span><span>4. Ограничения</span><span>5. Риски</span><span>6. Проверка</span><span>7. Результат</span></div>
-  <section class='quick-mode-panel mode-panel' data-mode-panel='quick'>
-    <h2>Очень быстрый режим</h2><p class='small'>Опишите задачу обычным языком. Это не формирует отчёт сразу: сначала будет экран “Я понял задачу так”.</p>
-    <label class='field'><span>Опишите задачу своими словами</span><textarea name='quick_description' id='quickDescription' placeholder='Например: сервис договоров должен передавать изменения в сервис отчётности через Kafka, но перед отправкой нужно получить данные клиента из другого REST-сервиса.'></textarea></label>
-    <div class='simple-question-grid'>
-      <label class='field'><span>Что нужно сделать?</span><select name='quick_goal'><option value='design_new'>Спроектировать новое решение</option><option value='check_existing'>Проверить существующее решение</option><option value='analyze_case'>Разобрать кейс</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
-      <label class='field'><span>Как быстро нужен результат?</span><select name='quick_speed'><option value='immediate'>Сразу</option><option value='seconds_minutes'>В течение секунд/минут</option><option value='daily'>Раз в день</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
-      <label class='field'><span>Есть Kafka или брокер?</span><select name='quick_broker'><option value='yes'>Да</option><option value='no'>Нет</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
-      <label class='field'><span>Есть внешняя система?</span><select name='quick_external'><option value='yes'>Да</option><option value='no'>Нет</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
-      <label class='field'><span>Нагрузка</span><select name='quick_load'><option value='low'>Низкая</option><option value='medium'>Средняя</option><option value='high'>Высокая</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
-    </div>
-    <div class='primary-row'><button type='button' class='btn' id='quickDraftBtn'>Разобрать задачу</button></div>
-  </section>
+  <div class='progress-rail simple-progress-rail' id='progressRail'><span class='active'>1. Что делаем?</span><span>2. Какая ситуация?</span><span>3. Простые вопросы</span><span>4. Я понял задачу так</span><span>5. Схема</span><span>6. Отчёт</span></div>
   <section class='wizard-mode-panel mode-panel' data-mode-panel='wizard'>
     <div class='simple-master' id='simpleWizard'>
       <h2>Простой мастер: путь без архитектурных терминов</h2>
-      <p class='simple-master-lead'>1. Что нужно сделать? → 2. Что происходит в бизнесе? → 3. Какие системы участвуют? → 4. Как идёт процесс? → 5. Проверка перед отчётом. Незаполненные пункты не блокируют отчёт — они попадут в риски и вопросы.</p>
+      <p class='simple-master-lead'>1. Что делаем? → 2. Какая ситуация? → 3. Простые вопросы → 4. Я понял задачу так → 5. Схема → 6. Отчёт. Для полного отчёта нужно заполнить ключевые вопросы.</p>
       <div class='simple-master-steps' id='simpleWizardSteps' aria-label='Шаги простого мастера'></div>
       <div class='simple-master-panel is-active' data-simple-panel='0'>
-        <h3>Шаг 1. Что нужно сделать?</h3>
+        <h3>Шаг 1. Что делаем?</h3>
         <div class='scenario-card-grid' id='scenarioCards'>
-          <button type='button' class='scenario-card is-active' data-scenario='new_rest'><b>Спроектировать новую интеграцию</b><span>REST/API по умолчанию, синхронный ответ, timeout и error mapping.</span></button>
-          <button type='button' class='scenario-card' data-scenario='audit'><b>Проверить существующее решение</b><span>Включит режим аудита, текущие системы, проблемы и контроли.</span></button>
-          <button type='button' class='scenario-card' data-scenario='production'><b>Доработать production-процесс</b><span>Фокус на безопасном rollout, обратимости, владельцах и manual recovery.</span></button>
-          <button type='button' class='scenario-card' data-scenario='e2e'><b>Спроектировать сложную E2E-цепочку</b><span>Несколько систем, статусы, ветвления, Saga/Process Manager.</span></button>
-          <button type='button' class='scenario-card' data-scenario='service2_worker'><b>Сервис принял запрос и обработал позже</b><span>Сервис 1 вызывает сервис 2, сервис 2 сохраняет задачу, worker читает БД и асинхронно вызывает сервис 3.</span></button>
-          <button type='button' class='scenario-card' data-scenario='external_partner'><b>Интеграция с внешним партнёром</b><span>Внешнее API, SLA поставщика, подпись, retry и fallback.</span></button>
-          <button type='button' class='scenario-card' data-scenario='kafka'><b>Kafka / события</b><span>eventId, idempotencyKey, retry, DLQ, replay и consumer lag.</span></button>
-          <button type='button' class='scenario-card' data-scenario='dwh'><b>DWH / отчётность</b><span>Batch/CDC, lineage, полнота, late data и reconciliation.</span></button>
-          <button type='button' class='scenario-card' data-scenario='legacy_file'><b>Legacy / file exchange</b><span>File adapter, validation, checksum, quarantine и reprocessing.</span></button>
-          <button type='button' class='scenario-card' data-scenario='webhook'><b>Webhook / callback</b><span>requestId, signature, callback validation, idempotency, status polling fallback.</span></button>
-          <button type='button' class='scenario-card' data-scenario='hot_status'><b>Горячий экран статуса</b><span>Read Model / Cache, freshness, staleness policy и fallback.</span></button>
-          <button type='button' class='scenario-card' data-scenario='financial'><b>Финансовая / критичная операция</b><span>business idempotency, operationId, audit, reconciliation, compensation.</span></button>
-          <button type='button' class='scenario-card' data-scenario='help_me_choose' id='scenarioHelperCard'><b>Не знаю, помогите выбрать</b><span>Ответьте на несколько вопросов — мастер предложит подходящий сценарий, но выбор можно изменить вручную.</span></button>
+          <button type='button' class='scenario-card is-active' data-scenario='new_rest'><b>Спроектировать новую интеграцию</b><span>Когда нужно связать сервисы, передать данные, вызвать API, отправить событие или построить процесс с нуля.</span></button>
+          <button type='button' class='scenario-card' data-scenario='audit'><b>Проверить существующее решение</b><span>Когда схема уже есть, но нужно найти риски: дубли, потери данных, таймауты, отсутствие идемпотентности, повторов, мониторинга и восстановления.</span></button>
+          <button type='button' class='scenario-card' data-scenario='help_me_choose' id='scenarioHelperCard'><b>Разобрать сложный кейс</b><span>Когда участвуют несколько сервисов, есть фоновая обработка, отложенный ответ, legacy, обогащение данных, отчётность или инфраструктурные ограничения.</span></button>
         </div>
         <div class='complex-graph-preview' data-graph-preview-mirror id='scenarioChainPreview'><h4>Схема появится после выбора сценария</h4><div class='chain-empty'>Выберите карточку сценария или нажмите “Не знаю, помогите выбрать”.</div></div>
         <div class='helper-panel' id='scenarioHelperPanel'>
@@ -3735,10 +4038,39 @@ def form_page(vals=None):
         </div>
       </div>
       <div class='simple-master-panel' data-simple-panel='1'>
-        <h3>Шаг 2. Что происходит в бизнесе?</h3>
-        <div class='friendly-field-grid'>
-          <div class='friendly-field'><label for='simpleUserAction'>Кто запускает процесс?</label><input id='simpleUserAction' data-map-field='user_action' value='Пользователь или сервис инициирует процесс'></div>
-          <div class='friendly-field'><label for='simpleBusinessGoal'>Что должно произойти?</label><textarea id='simpleBusinessGoal' data-map-field='business_goal'>Нужно передать результат между системами безопасно и наблюдаемо.</textarea></div>
+        <h3>Шаг 2. Какая ситуация?</h3>
+        <div class='scenario-card-grid compact'>
+          <label class='mode-choice'><input type='radio' name='simple_situation' value='sync_rest'>Один сервис вызывает другой и ждёт ответ</label>
+          <label class='mode-choice'><input type='radio' name='simple_situation' value='async_worker'>Нужно принять запрос сейчас, а обработать позже</label>
+          <label class='mode-choice'><input type='radio' name='simple_situation' value='event_kafka'>Нужно отправить событие об изменении данных</label>
+          <label class='mode-choice'><input type='radio' name='simple_situation' value='enrichment_kafka'>Нужно обогатить данные перед отправкой</label>
+          <label class='mode-choice'><input type='radio' name='simple_situation' value='callback'>Внешняя система ответит позже callback-ом</label>
+          <label class='mode-choice'><input type='radio' name='simple_situation' value='status_aggregation'>Нужно собрать статус из нескольких систем</label>
+          <label class='mode-choice'><input type='radio' name='simple_situation' value='dwh'>Нужно передать данные в DWH/отчётность</label>
+          <label class='mode-choice'><input type='radio' name='simple_situation' value='legacy_file'>Есть legacy-система или файлы</label>
+          <label class='mode-choice'><input type='radio' name='simple_situation' value='shared_topic'>Kafka одна, consumer фильтрует только нужные события</label>
+          <label class='mode-choice'><input type='radio' name='simple_situation' value='unknown'>Не знаю, помогите выбрать</label>
+        </div>
+      </div>
+      <div class='simple-master-panel' data-simple-panel='2'>
+        <h3>Шаг 3. Простые вопросы</h3>
+        <div class='simple-question-grid'>
+          <label class='field'><span>Сколько систем участвует?</span><select name='simple_q_systems'><option>2</option><option>3</option><option>больше 3</option><option>пока не знаю</option></select></label>
+          <label class='field'><span>Ответ нужен сразу?</span><select name='simple_q_immediate'><option>да, нужен сразу</option><option>нет, можно позже</option><option>нужно принять запрос сейчас, а результат получить позже</option><option>не знаю</option></select></label>
+          <label class='field'><span>Что передаём?</span><select name='simple_q_payload'><option>команду/заявку</option><option>изменение данных</option><option>статус</option><option>справочные данные</option><option>договорные/финансовые данные</option><option>файл</option><option>другое</option></select></label>
+          <label class='field'><span>Что страшнее всего?</span><select name='simple_q_risk'><option>потерять данные</option><option>получить дубль</option><option>долго ждать ответ</option><option>получить устаревшие данные</option><option>сломать внешний процесс</option><option>всё важно</option></select></label>
+          <label class='field'><span>Есть внешняя система?</span><select name='simple_q_external'><option>да</option><option>нет</option><option>не знаю</option></select></label>
+          <label class='field'><span>Можно менять систему-источник?</span><select name='simple_q_source_change'><option>да</option><option>нет</option><option>частично</option><option>не знаю</option></select></label>
+          <label class='field'><span>Какая нагрузка?</span><select name='simple_q_load'><option>низкая</option><option>средняя</option><option>высокая</option><option>пиковая/массовая</option><option>не знаю</option></select></label>
+          <label class='field'><span>Есть критичные данные?</span><select name='simple_q_critical'><option>деньги</option><option>договоры</option><option>персональные данные</option><option>регуляторика</option><option>клиентский процесс</option><option>нет</option><option>не знаю</option></select></label>
+          <label class='field'><span>Что делать при ошибке?</span><select name='simple_q_error'><option>повторить позже</option><option>показать ошибку сразу</option><option>отправить в ручной разбор</option><option>сохранить и обработать потом</option><option>не знаю</option></select></label>
+          <label class='field'><span>Нужно видеть статус процесса?</span><select name='simple_q_status'><option>да</option><option>нет</option><option>желательно</option><option>не знаю</option></select></label>
+        </div>
+        <div class='simple-step3-extra'>
+          <p class='small'>Дополнительно, если знаете:</p>
+          <div class='friendly-field-grid'>
+          <div class='friendly-field'><label for='simpleUserAction'>Кто запускает процесс?</label><input id='simpleUserAction' data-map-field='user_action' value='' placeholder='Например: Service A или пользователь'></div>
+          <div class='friendly-field'><label for='simpleBusinessGoal'>Что должно произойти?</label><textarea id='simpleBusinessGoal' data-map-field='business_goal' placeholder='Опишите, что должно произойти между системами.'></textarea></div>
           <div class='friendly-field'><label for='simpleCustomerVisible'>Кто видит результат?</label><select id='simpleCustomerVisible' data-map-field='customer_visible'><option value='yes'>Пользователь/клиент</option><option value='no'>Только внутренние системы</option><option value='mixed'>Частично</option></select></div>
           <div class='friendly-field'><label for='simpleUnavailable'>Что делать при ошибке?</label><select id='simpleUnavailable'><option value='show_error'>Показать понятную ошибку</option><option value='degraded'>Показать частичный/устаревший результат</option><option value='queue_for_later'>Поставить в очередь и обработать позже</option><option value='manual_recovery'>Передать в ручное восстановление</option></select></div>
           <div class='friendly-field'><label for='simpleMoney'>Есть финансовый риск?</label><select id='simpleMoney'><option value='no'>Нет</option><option value='yes'>Да</option><option value='indirect'>Косвенно / возможно</option></select></div>
@@ -3748,16 +4080,20 @@ def form_page(vals=None):
           <div class='friendly-field'><label for='simpleBackground'>Можно обработать в фоне?</label><select id='simpleBackground'><option value='yes'>Да</option><option value='no'>Нет</option><option value='partly'>Частично</option></select></div>
           <div class='friendly-field'><label for='simpleStale'>Можно показать устаревшие данные?</label><select id='simpleStale'><option value='acceptable'>Да, если пометить свежесть</option><option value='bad'>Нежелательно</option><option value='critical'>Нельзя</option></select></div>
           <div class='friendly-field'><label for='simpleFreshnessReq'>Требование к свежести</label><select id='simpleFreshnessReq'><option value='seconds'>Секунды</option><option value='minutes'>Минуты</option><option value='daily'>Раз в день</option><option value='unknown'>Не знаю</option></select></div>
+          </div>
         </div>
-      </div>
-      <div class='simple-master-panel' data-simple-panel='2'>
-        <h3>Шаг 3. Какие системы участвуют?</h3>
         <div class='system-card-grid' id='systemBuilder'></div>
         <div class='builder-actions'><button type='button' class='btn mini-btn' id='addSystemBtn'>+ Добавить систему</button><button type='button' class='btn secondary mini-btn' id='syncSystemsBtn'>Собрать systems_matrix</button><button type='button' class='btn ghost mini-btn' id='toggleSystemsMatrixBtn'>Показать экспертную матрицу</button></div>
         <div class='expert-matrix-collapsed' id='systemsMatrixPreview'></div>
       </div>
       <div class='simple-master-panel' data-simple-panel='3'>
-        <h3>Шаг 4. Как идёт процесс?</h3>
+        <h3>Шаг 4. Я понял задачу так</h3>
+        <div class='readiness-layout'>
+          <div class='readiness-list'><b>Цель</b><p>Сформировать понятное интеграционное решение по выбранной ситуации.</p></div>
+          <div class='readiness-list'><b>Тип обмена</b><p>Определяется автоматически по ответам пользователя.</p></div>
+          <div class='readiness-list'><b>Главные риски</b><p>Дубли, потеря данных, таймауты, зависшие статусы и недоступные зависимости.</p></div>
+        </div>
+        <div class='builder-actions'><button type='button' class='btn secondary' id='confirmUnderstandingBtn'>Всё верно, построить схему</button><button type='button' class='btn ghost'>Поправить ответы</button><button type='button' class='btn ghost' id='openTechDetailsBtn'>Открыть технические детали</button></div>
         <label class='friendly-field'><span>Шаблон цепочки</span><select id='simpleChainTemplate'><option value='rest'>Один сервис вызывает другой и ждёт ответ</option><option value='service2_async_worker'>Сервис принял запрос и обработал позже через worker</option><option value='kafka'>Сервис сохранил изменение и отправил событие</option><option value='orchestrator'>Процесс идёт через несколько сервисов со статусами</option><option value='webhook'>Внешняя система потом присылает callback</option><option value='rest_enrichment_kafka'>Перед отправкой события нужно обогатить данные</option><option value='shared_topic'>Читаем общий Kafka topic и фильтруем нужное</option><option value='legacy_file'>Legacy отдаёт файл, новая система обрабатывает</option><option value='dwh'>Выгрузка в DWH / отчётность</option><option value='outbox_inbox'>Надёжная публикация через Outbox → Kafka → Inbox</option><option value='hot_status'>Горячий экран статуса через Read Model / Cache</option></select></label>
         <div class='builder-actions'><button type='button' class='btn secondary mini-btn' id='applyChainTemplateBtn'>Собрать рекомендуемую цепочку автоматически</button><span class='small'>Кнопка сразу построит поток шагов, статусы, retry/recovery и скрытые матрицы.</span></div>
         <div class='step-card-grid' id='stepBuilder'></div>
@@ -3765,13 +4101,20 @@ def form_page(vals=None):
         <div class='expert-matrix-collapsed' id='stepsMatrixPreview'></div>
       </div>
       <div class='simple-master-panel' data-simple-panel='4'>
-        <h3>Шаг 5. Проверка перед отчётом</h3>
+        <h3>Шаг 5. Схема</h3>
+        <div class='complex-graph-preview'><h4>Визуальная схема</h4><div>Service A → REST API → Service B</div><p class='small'>Для сложных кейсов мастер добавит retry, ошибку, ручной разбор, получение статуса и callback/polling, если это применимо.</p></div>
+        <h3>Шаг 6. Отчёт</h3>
         <div class='readiness-layout'><div class='readiness-score'><strong id='simpleReadyScore'>0%</strong><span>Готовность к отчёту</span></div><div class='readiness-list'><b>Заполнено</b><ul id='simpleReadyDone'></ul></div><div class='readiness-list'><b>Не заполнено / попадёт в риски</b><ul id='simpleReadyMissing'></ul></div></div>
-        <p class='muted'>Можно сформировать отчёт сейчас. Незаполненные пункты попадут в риски и вопросы.</p>
+        <p class='muted'>Пока данных мало — можно сформировать только черновик. Для полного отчёта нужно заполнить ключевые вопросы.</p>
         <div class='placeholder-warning' id='placeholderWarning'>Добавлены placeholder-значения. Перед production их нужно уточнить. Они попадут в риски отчёта.</div>
-        <div class='builder-actions'><button type='button' class='btn' id='simpleGenerateBtn'>Сформировать отчёт</button><button type='button' class='btn secondary' id='fillMissingBtn'>Заполнить недостающее</button><button type='button' class='btn ghost' id='openAdvancedFromReadyBtn'>Открыть глубокий / расширенный режим</button></div>
+        <div class='builder-actions'><button type='button' class='btn' id='simpleGenerateBtn'>Сформировать черновик</button><button type='button' class='btn secondary' id='fillMissingBtn'>Заполнить недостающее</button><button type='button' class='btn ghost' id='openAdvancedFromReadyBtn'>Открыть технические детали</button></div>
       </div>
-      <div class='simple-master-actions'><button type='button' class='btn secondary' id='simplePrevBtn'>Назад</button><button type='button' class='btn' id='simpleNextBtn'>Далее</button><button type='button' class='btn ghost' id='simplePowerBtn'>Глубокий / расширенный режим</button></div>
+      <div class='simple-master-panel' data-simple-panel='5'>
+        <h3>Шаг 6. Отчёт</h3>
+        <p class='muted'>Отчёт формируется только после цели, ситуации, простых вопросов, подтверждения понимания и схемы.</p>
+        <div class='readiness-layout'><div class='readiness-list'><b>0–40%</b><p>Недостаточно данных для архитектурного вывода. Доступен только черновик.</p></div><div class='readiness-list'><b>40–70%</b><p>Отчёт предварительный. Перед разработкой нужно уточнить открытые вопросы.</p></div><div class='readiness-list'><b>70–100%</b><p>Можно сформировать полный отчёт.</p></div></div>
+      </div>
+      <div class='simple-master-actions'><button type='button' class='btn secondary' id='simplePrevBtn'>Назад</button><button type='button' class='btn' id='simpleNextBtn'>Далее</button><button type='button' class='btn ghost' id='simplePowerBtn'>Показать технические детали</button></div>
     </div>
     <div class='legacy-wizard-compat expert-only'>
     <h2>Совместимый продвинутый мастер</h2><p class='small'>Старый мастер скрыт в простом режиме. Он доступен только в advanced/expert mode для совместимости с прежними полями и тестовыми сценариями.</p>
@@ -3861,10 +4204,10 @@ def form_page(vals=None):
     </div>
     <div class='primary-row'><button type='button' class='btn' id='advancedReviewBtn'>Проверить понимание и сформировать отчёт</button></div>
   </section>
-  <section class='expert-intro mode-panel' data-mode-panel='expert'><h2>Экспертный режим</h2><p>Этот режим предназначен для ручного редактирования технических матриц. Обычно достаточно простого мастера.</p><button type='button' class='btn secondary' data-switch-mode='wizard'>Вернуться к простому мастеру</button></section>
-  <section class='review-screen card is-hidden' id='reviewScreen'><h2>Я понял задачу так</h2><div id='reviewContent'></div><div class='report-actions'><button type='button' class='btn' id='confirmGenerateBtn'>Всё верно, сформировать решение</button><button type='button' class='btn secondary' id='editDraftBtn'>Поправить</button><button type='button' class='btn ghost' data-switch-mode='advanced'>Открыть глубокий режим</button></div></section>
+  <section class='expert-intro mode-panel' data-mode-panel='expert'><h2>Технические детали</h2><p>Этот режим предназначен для ручного редактирования технических матриц. Обычно достаточно простого мастера.</p><button type='button' class='btn secondary' data-switch-mode='wizard'>Вернуться к простому мастеру</button></section>
+  <section class='review-screen card is-hidden' id='reviewScreen'><h2>Я понял задачу так</h2><div id='reviewContent'></div><div class='report-actions'><button type='button' class='btn' id='confirmGenerateBtn'>Всё верно, сформировать решение</button><button type='button' class='btn secondary' id='editDraftBtn'>Поправить</button><button type='button' class='btn ghost' data-switch-mode='advanced'>Показать технические детали</button></div></section>
   <div class='ultra-panel simple-only' id='ultraPanel'>
-    <span class='mode-badge'>Ультракороткий путь</span>
+    <span class='mode-badge'>Короткое описание</span>
     <h2>Решение по минимуму данных — как на собеседовании</h2>
     <p>Выберите тип кейса и 2–3 ограничения. Поля ниже заполнять необязательно: мастер сам соберёт цепочку сервисов, БД, статусы, контракты, риски и ADR-черновик.</p>
     <p class='mobile-note small'>Мобильный режим включён: карточки, кнопки и поля перестраиваются в одну колонку.</p>
@@ -4012,17 +4355,19 @@ def form_page(vals=None):
     <button type='button' class='btn ghost' data-complex-template='compensation'>Шаблон: компенсация</button>
   </div>
   <div class='checklist' id='checklist'></div>
+  <details class='expert-details legacy-questions-details'><summary>Показать технические детали</summary>
   %%SECTIONS%%
+  </details>
   <div class='nav'>
     <button class='btn secondary' type='button' id='prevBtn'>← Назад</button>
     <div>
       <button class='btn secondary' type='button' id='nextBtn'>Далее →</button>
-      <button class='btn' type='submit' id='submitBtn'>2. Сформировать отчёт</button>
+      <button class='btn' type='submit' id='submitBtn'>2. Сформировать черновик</button>
     </div>
   </div>
   <div class='sticky-submit'>
     <p class='small' id='stickyHint'>Отчёт можно формировать в любой момент, но лучше сначала закрыть жёлтые пункты checklist.</p>
-    <button class='btn' type='submit' id='stickySubmitBtn'>Сформировать отчёт</button>
+    <button class='btn' type='submit' id='stickySubmitBtn'>Сформировать черновик</button>
   </div>
 </form>
 </div>
@@ -4110,7 +4455,7 @@ def form_page(vals=None):
       uxAdvice.innerHTML = missing.length ? 'Ещё полезно заполнить: <b>' + missing.join('</b>, <b>') + '</b>.' : '<b>База заполнена.</b> Можно формировать отчёт или уточнить матрицы для production-уровня.';
     }
     const sticky = document.getElementById('stickyHint');
-    if (sticky) sticky.textContent = readyPct >= 80 ? 'База для отчёта заполнена. Можно формировать отчёт.' : 'Можно сформировать отчёт сейчас, но жёлтые пункты попадут в вопросы/риски.';
+    if (sticky) sticky.textContent = readyPct >= 80 ? 'База для отчёта заполнена. Можно формировать отчёт.' : 'Пока данных мало — можно сформировать только черновик.';
   }
   function refreshUx() { renderChecklist(); updateSectionBadges(); updateUxMeters(); }
 
@@ -4397,7 +4742,7 @@ ${entity}Status | ${systems[1] || 'Core'} | ${systems[2] || 'Consumer/DWH'} | co
   const reviewScreen = document.getElementById('reviewScreen');
   const reviewContent = document.getElementById('reviewContent');
   const modeMeta = {
-    quick:['Очень быстрый режим','Быстро разобрать задачу','Вставьте описание и 3–5 простых ответов. Затем проверьте экран “Я понял задачу так”.'],
+    quick:['Простой мастер','Выберите цель','Двигайтесь по 6 шагам: цель, ситуация, вопросы, понимание, схема, отчёт.'],
     wizard:['Простой мастер','Пошагово спроектировать интеграцию','Идите по шагам: задача, участники, процесс, ограничения, риски, проверка, результат.'],
     review:['Проверка решения','Проверить существующее решение','Опишите текущую схему; мастер заполнит поля аудита и покажет риски.'],
     advanced:['Продвинутый режим','Больше глубины, но такое же простое заполнение','Выберите ограничения, сложность цепочки, ветки, recovery и эксплуатационные риски. Матрицы система соберёт сама.'],
@@ -4457,7 +4802,7 @@ ${entity}Status | ${systems[1] || 'Core'} | ${systems[2] || 'Consumer/DWH'} | co
     const vc=document.getElementById('visualChain'); if(vc) vc.textContent=map[processTemplate.value]||map.auto;
   });
 
-  const simpleWizardLabels = ['Что нужно сделать?', 'Бизнес', 'Системы', 'Процесс', 'Проверка'];
+  const simpleWizardLabels = ['Что делаем?', 'Какая ситуация?', 'Простые вопросы', 'Я понял задачу так', 'Схема', 'Отчёт'];
   let simpleWizardStep = 0;
   // Fresh run must start empty: no systems/steps from old demos or previous iterations.
   // Scenario buttons and chain templates populate these arrays only after the user chooses a flow.
@@ -5054,7 +5399,7 @@ def parse_post(body):
             else:
                 f[qid]=raw.get(qid,[default])[0]
     f['preset_name']=raw.get('preset_name',[''])[0]
-    for extra_key in ['delivery_guarantee','audit_required','rollback_plan','manual_recovery_owner','lineage_required','data_quality_required','report_detail','ux_mode','process_graph_json','process_graph_meta']:
+    for extra_key in ['delivery_guarantee','audit_required','rollback_plan','manual_recovery_owner','lineage_required','data_quality_required','report_detail','ux_mode','process_graph_json','process_graph_meta','simple_situation','simple_goal','simple_q_systems','simple_q_immediate','simple_q_payload','simple_q_risk','simple_q_external','simple_q_source_change','simple_q_load','simple_q_critical','simple_q_error','simple_q_status']:
         if extra_key in raw:
             f[extra_key]=raw.get(extra_key,[''])[0]
     return apply_progressive_ui_mapping(raw, f)
