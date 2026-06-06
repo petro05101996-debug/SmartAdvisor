@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.git/
+.github/
+.gitignore
+.integration_architect_pro/*.sqlite3
+.integration_architect_pro/generated_reports/
+generated_integration_architect_reports/
+tests/
+test_*.py
+pytest.ini
+requirements-dev.txt
+*.log

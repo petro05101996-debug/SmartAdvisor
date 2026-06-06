@@ -1,16 +1,7 @@
-name: Unpack archive into repository
+name: Unpack archive into repo
 
 on:
   workflow_dispatch:
-    inputs:
-      archive_name:
-        description: "Archive file name in repository root"
-        required: true
-        default: "SmartAdvisor-main-v5_1_all_report_branches_checked.zip"
-      target_branch:
-        description: "Branch to commit unpacked files into"
-        required: true
-        default: "main"
 
 permissions:
   contents: write
@@ -20,140 +11,60 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout selected branch
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.target_branch }}
-          fetch-depth: 0
 
-      - name: Show repository before unpack
+      - name: Show files
         run: |
-          echo "Current branch:"
-          git branch --show-current
-          echo "Repository files:"
-          ls -la
+          pwd
+          ls -lah
 
       - name: Install unzip
         run: |
           sudo apt-get update
-          sudo apt-get install -y unzip rsync
+          sudo apt-get install -y unzip
 
-      - name: Validate archive exists
+      - name: Unpack project archive
         run: |
-          ARCHIVE="${{ github.event.inputs.archive_name }}"
-          if [ ! -f "$ARCHIVE" ]; then
-            echo "Archive not found: $ARCHIVE"
-            echo "Files in repository root:"
-            ls -la
+          ZIP_FILE="integration_architect_pro_v5_0_9_predeploy_checked_ru.zip"
+
+          if [ ! -f "$ZIP_FILE" ]; then
+            echo "Archive not found: $ZIP_FILE"
+            echo "Files in repo:"
+            ls -lah
             exit 1
           fi
 
-      - name: Unpack archive safely
+          rm -rf unpacked_project
+          mkdir unpacked_project
+          unzip -q "$ZIP_FILE" -d unpacked_project
+
+          echo "Unpacked structure:"
+          find unpacked_project -maxdepth 3 -type f | head -100
+
+      - name: Move files to repository root
         run: |
-          set -e
-
-          ARCHIVE="${{ github.event.inputs.archive_name }}"
-          TMP_DIR="_unpacked_tmp"
-
-          rm -rf "$TMP_DIR"
-          mkdir "$TMP_DIR"
-
-          unzip -q "$ARCHIVE" -d "$TMP_DIR"
-
-          echo "Top-level unpacked content:"
-          find "$TMP_DIR" -maxdepth 2 -type f | head -50
-
-          # Detect whether archive contains one root folder or files directly.
-          ROOT_DIR="$TMP_DIR"
-          DIR_COUNT=$(find "$TMP_DIR" -mindepth 1 -maxdepth 1 -type d | wc -l)
-          FILE_COUNT=$(find "$TMP_DIR" -mindepth 1 -maxdepth 1 -type f | wc -l)
-
-          if [ "$DIR_COUNT" -eq 1 ] && [ "$FILE_COUNT" -eq 0 ]; then
-            ROOT_DIR=$(find "$TMP_DIR" -mindepth 1 -maxdepth 1 -type d | head -1)
-            echo "Archive has single root folder: $ROOT_DIR"
+          # В архиве проект лежит внутри ia_v48/
+          if [ -d "unpacked_project/ia_v48" ]; then
+            cp -R unpacked_project/ia_v48/. .
           else
-            echo "Archive content is directly in zip root."
+            cp -R unpacked_project/. .
           fi
 
-          # Remove old project files, but keep .git and .github workflow directory.
-          find . -mindepth 1 -maxdepth 1 \
-            ! -name ".git" \
-            ! -name ".github" \
-            ! -name "$ARCHIVE" \
-            ! -name "$TMP_DIR" \
-            -exec rm -rf {} +
+          rm -rf unpacked_project
 
-          # Copy unpacked project to repository root.
-          rsync -a "$ROOT_DIR"/ ./
+          echo "Final repo structure:"
+          ls -lah
 
-          # Remove archive and temp dir after unpack.
-          rm -rf "$TMP_DIR"
-          rm -f "$ARCHIVE"
-
-      - name: Verify project structure
+      - name: Remove archive from repo
         run: |
-          echo "Repository after unpack:"
-          ls -la
-
-          echo "Looking for common deployment files:"
-          find . -maxdepth 2 \( \
-            -name "Dockerfile" -o \
-            -name "requirements.txt" -o \
-            -name "pyproject.toml" -o \
-            -name "package.json" -o \
-            -name "app.py" -o \
-            -name "main.py" \
-          \) -print
-
-          if [ ! -f "Dockerfile" ]; then
-            echo "WARNING: Dockerfile not found in repository root."
-            echo "If Dockerfile is inside a subfolder, move it to root or configure Timeweb build context."
-          fi
-
-      - name: Run basic Python checks if available
-        run: |
-          set -e
-
-          if [ -f "requirements.txt" ]; then
-            python -m pip install --upgrade pip
-            pip install -r requirements.txt
-          fi
-
-          python -m compileall . || exit 1
-
-          if [ -d "tests" ]; then
-            pip install pytest || true
-            pytest -q || exit 1
-          else
-            echo "No tests directory found, skipping pytest."
-          fi
-
-      - name: Run JS syntax check if package exists
-        run: |
-          set -e
-
-          if [ -f "package.json" ]; then
-            npm install
-            npm run build --if-present
-            npm test --if-present
-          else
-            echo "No package.json found, skipping JS checks."
-          fi
+          rm -f integration_architect_pro_v5_0_9_predeploy_checked_ru.zip
 
       - name: Commit unpacked files
         run: |
-          set -e
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
 
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git status --short
-
-          if git diff --quiet && git diff --cached --quiet; then
-            echo "No changes to commit."
-            exit 0
-          fi
-
-          git add -A
-          git commit -m "Unpack project archive and prepare for deployment"
-          git push origin HEAD:${{ github.event.inputs.target_branch }}
+          git add .
+          git commit -m "Unpack Integration Architect project" || echo "Nothing to commit"
+          git push
