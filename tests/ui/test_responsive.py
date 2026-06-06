@@ -33,7 +33,7 @@ def test_result_page_no_horizontal_scroll(page, app_server, width, height):
     page.goto(app_server)
     page.wait_for_selector("#startDesignBtn")
     page.locator("#startDesignBtn").click()
-    page.get_by_text("Kafka / события").click()
+    page.locator("[data-scenario='kafka']").click()
 
     for _ in range(4):
         page.locator("#simpleNextBtn").click()

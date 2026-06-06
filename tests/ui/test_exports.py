@@ -9,7 +9,7 @@ def test_result_download_links_return_files(page, app_server, tmp_path):
     page.goto(app_server)
     page.wait_for_selector("#startDesignBtn")
     page.locator("#startDesignBtn").click()
-    page.get_by_text("Kafka / события").click()
+    page.locator("[data-scenario='kafka']").click()
 
     for _ in range(4):
         page.locator("#simpleNextBtn").click()

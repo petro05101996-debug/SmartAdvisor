@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 
@@ -6,7 +8,7 @@ def test_generate_report_and_exports_visible(page, app_server):
     page.goto(app_server)
     page.wait_for_selector("#startDesignBtn")
     page.locator("#startDesignBtn").click()
-    page.get_by_text("Kafka / события").click()
+    page.locator("[data-scenario='kafka']").click()
 
     for _ in range(4):
         page.locator("#simpleNextBtn").click()
@@ -14,11 +16,11 @@ def test_generate_report_and_exports_visible(page, app_server):
     page.locator("#simpleGenerateBtn").click()
     page.wait_for_selector("text=Короткий итог")
 
-    assert page.get_by_text("Короткий итог").is_visible()
-    assert page.get_by_text("Визуальная схема").is_visible()
-    assert page.get_by_text("Обязательные элементы").is_visible()
-    assert page.get_by_text("Риски").is_visible()
-    assert page.get_by_text("Скачать markdown").is_visible()
-    assert page.get_by_text("Скачать JSON").is_visible()
-    assert page.get_by_text("Скачать export").is_visible()
-    assert page.get_by_text("Полный технический отчёт").is_visible()
+    assert page.locator("h3", has_text="Короткий итог").is_visible()
+    assert page.locator("h3", has_text="Визуальная схема").is_visible()
+    assert page.locator("h3", has_text="Обязательные элементы").is_visible()
+    assert page.locator("h3", has_text="Риски и вопросы").is_visible()
+    assert page.get_by_role("link", name=re.compile("Скачать markdown")).is_visible()
+    assert page.get_by_role("link", name=re.compile("Скачать JSON")).is_visible()
+    assert page.get_by_role("link", name=re.compile("Скачать export")).is_visible()
+    assert page.locator("summary", has_text="Полный технический отчёт").is_visible()
