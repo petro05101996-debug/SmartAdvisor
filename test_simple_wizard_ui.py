@@ -15,9 +15,9 @@ def test_simple_wizard_exposes_required_beginner_flow_and_working_controls():
     start = _start_screen(html)
     for text in [
         'Интеграционный инструктор',
-        'Начать проектирование',
+        'Спроектировать новую интеграцию',
         'Проверить существующее решение',
-        'Расширенный режим',
+        'Разобрать сложный кейс',
     ]:
         assert text in start
     assert 'Быстро разобрать задачу' not in start
@@ -27,10 +27,11 @@ def test_simple_wizard_exposes_required_beginner_flow_and_working_controls():
         'Не знаю, помогите выбрать',
         'Мини-опрос для выбора сценария',
         'Применить этот сценарий',
-        'Шаг 1. Что нужно сделать?',
-        'Шаг 2. Что происходит в бизнесе?',
-        'Шаг 3. Какие системы участвуют?',
-        'Шаг 4. Как идёт процесс?',
+        'Шаг 1. Что делаем?',
+        'Шаг 2. Какая ситуация?',
+        'Шаг 3. Простые вопросы',
+        'Шаг 4. Я понял задачу так',
+        'Шаг 5. Схема',
         'Готовность к отчёту',
         '+ Добавить систему',
         'Дублировать систему',
@@ -49,11 +50,11 @@ def test_legacy_wizard_hidden_from_simple_mode_and_result_step_removed():
     assert 'legacy-wizard-compat' in html
     assert 'body.advanced-mode .legacy-wizard-compat' in html
     assert 'body.expert-mode .legacy-wizard-compat' in html
-    assert 'body.simple-mode #progressRail' in html
-    assert 'body.simple-mode .quick-mode-panel' in html
+    assert "id='progressRail'" in html
+    assert 'quick-mode-panel' not in html
     assert 'body.simple-mode .sticky-submit' in html
-    assert "const simpleWizardLabels = ['Что нужно сделать?', 'Бизнес', 'Системы', 'Процесс', 'Проверка'];" in html
-    assert "data-simple-panel='5'" not in html
+    assert "const simpleWizardLabels = ['Что делаем?', 'Какая ситуация?', 'Простые вопросы', 'Я понял задачу так', 'Схема', 'Отчёт'];" in html
+    assert "data-simple-panel='5'" in html
     assert 'К результату' not in html
 
 

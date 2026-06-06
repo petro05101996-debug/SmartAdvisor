@@ -177,9 +177,11 @@ def test_expert_mode_preserves_raw_matrices_even_with_hidden_wizard_defaults():
     assert 'wizard_defaults_applied' not in mapped
 
 
-def test_start_page_exposes_advanced_mode_card():
+def test_start_page_exposes_three_simple_goals_without_advanced_card():
     from integration_architect_pro import form_page
     html = form_page()
-    assert "value='advanced'" in html
-    assert 'Продвинутый режим' in html
-    assert "switchProgressiveMode('advanced')" in html
+    start = html.split("id='startScreen'", 1)[1].split('</section>', 1)[0]
+    assert 'Спроектировать новую интеграцию' in start
+    assert 'Проверить существующее решение' in start
+    assert 'Разобрать сложный кейс' in start
+    assert 'Продвинутый режим' not in start
