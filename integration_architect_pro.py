@@ -2847,6 +2847,21 @@ body:not(.power-mode) .wizard,body:not(.power-mode) .quick,body:not(.power-mode)
 .start-screen h1{font-size:42px;margin:0 0 10px}.mode-choice-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.mode-choice{display:block;border:1px solid var(--border);border-radius:18px;background:#0b1220;padding:16px;cursor:pointer;min-height:104px}.mode-choice input{margin-right:8px}.mode-choice b{display:block;color:#fff;margin-bottom:8px}.mode-choice span{display:block;color:#9ca3af;font-size:13px;line-height:1.35}.mode-choice.selected,.mode-choice:has(input:checked){border-color:#60a5fa;box-shadow:0 0 0 1px rgba(96,165,250,.35);background:#0b1b33}.primary-row{display:flex;justify-content:flex-end;margin-top:16px}.is-hidden{display:none!important}.mode-header{display:flex;justify-content:space-between;align-items:center;gap:16px}.progress-rail{position:sticky;top:0;z-index:8;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;background:rgba(7,17,31,.95);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:16px;padding:8px;margin-bottom:14px}.progress-rail span{font-size:12px;color:#9ca3af;background:#0b1220;border-radius:999px;padding:8px;text-align:center}.progress-rail span.active{background:#1d4ed8;color:#fff}.mode-panel{border:1px solid var(--border);border-radius:18px;background:#0b1220;padding:18px;margin-bottom:14px}.mode-panel:not(.active-mode-panel){display:none}.simple-question-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.wizard-step-card{border:1px solid var(--border);border-radius:16px;background:#07111f;padding:14px;margin:12px 0}.mode-choice-grid.compact{grid-template-columns:repeat(3,minmax(0,1fr))}.mode-choice-grid.compact .mode-choice{min-height:auto}.visual-chain{border:1px dashed #334155;border-radius:14px;padding:14px;background:#0f172a;color:#dbeafe;white-space:pre-line;text-align:center}.advanced-card-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.advanced-card{border:1px solid var(--border);border-radius:14px;background:#07111f;padding:14px;color:#fff}.advanced-card span{display:block;margin-top:8px;color:#fbbf24;font-size:12px}.expert-mode .matrix-section,.expert-mode .section{display:block}.wizard-mode .matrix-section,.quick-mode .matrix-section,.review-mode .matrix-section{display:none}body.quick-mode .ultra-panel,body.quick-mode .beginner-panel,body.wizard-mode .ultra-panel,body.wizard-mode .beginner-panel,body.review-mode .ultra-panel,body.review-mode .beginner-panel,body.advanced-mode .ultra-panel,body.advanced-mode .beginner-panel{display:none!important}body.expert-mode details.section,body.expert-mode details.matrix-section{display:block!important}.review-screen{border-color:#60a5fa}.review-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.review-list div{border:1px solid var(--border);border-radius:14px;background:#07111f;padding:12px}.result-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}.result-tab{border:1px solid var(--border);border-radius:999px;background:#0b1220;color:#d1d5db;padding:9px 12px}.production-gate{border:1px solid var(--border);border-radius:16px;padding:14px;background:#07111f;margin:12px 0}.gate-green{border-color:#22c55e}.gate-yellow{border-color:#f59e0b}.gate-red{border-color:#ef4444}
 @media(max-width:760px){.start-screen h1{font-size:30px}.mode-choice-grid,.mode-choice-grid.compact,.simple-question-grid,.advanced-card-grid,.review-list,.progress-rail{grid-template-columns:1fr!important}.mode-header{display:block}.primary-row{display:block}.mode-choice{min-height:auto}.progress-rail{position:sticky;top:0}.progress-rail span{text-align:left}.mode-panel{padding:14px}.wizard-step-card{padding:12px}}
 
+
+.simple-master{border:1px solid rgba(34,211,238,.45);background:linear-gradient(180deg,rgba(8,47,73,.96),rgba(11,18,32,.98));border-radius:22px;padding:20px;margin:0 0 18px;box-shadow:0 18px 50px rgba(0,0,0,.22)}
+.simple-master h2{font-size:26px}.simple-master-lead{max-width:900px;color:#cbd5e1}.simple-master-steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:16px 0}.simple-master-step{border:1px solid var(--border);border-radius:14px;background:#07111f;color:#cbd5e1;padding:10px;text-align:left;font-size:13px;min-height:54px}.simple-master-step.is-active{border-color:#22d3ee;background:#083344;color:#fff}.simple-master-step.is-done{border-color:#15803d;color:#bbf7d0}.simple-master-panel{display:none;border:1px solid rgba(38,50,69,.95);border-radius:18px;background:rgba(7,17,31,.72);padding:16px;margin-top:12px}.simple-master-panel.is-active{display:block}.scenario-card-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.scenario-card{min-height:116px;border:1px solid var(--border);background:#0b1220;border-radius:18px;padding:14px;color:#d1d5db;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:8px}.scenario-card b{color:#fff;font-size:15px}.scenario-card span{color:#9ca3af;font-size:12px;line-height:1.45}.scenario-card:hover,.scenario-card:focus-visible{border-color:#22d3ee;transform:translateY(-1px);outline:0}.scenario-card.is-active{border-color:#22d3ee;background:#083344;box-shadow:0 0 0 2px rgba(34,211,238,.18) inset}.friendly-field-grid,.system-card-grid,.step-card-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.friendly-field,.system-builder-card,.process-builder-card{border:1px solid var(--border);border-radius:16px;background:#0b1220;padding:12px;min-width:0}.friendly-field label,.system-builder-card label,.process-builder-card label{font-size:13px;font-weight:700;color:#e5e7eb}.builder-actions,.simple-master-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.mini-btn{padding:9px 12px;border-radius:12px;font-size:13px}.expert-matrix-toggle{margin-top:12px}.expert-matrix-collapsed{display:none}.readiness-layout{display:grid;grid-template-columns:.8fr 1fr 1fr;gap:12px;align-items:stretch}.readiness-score{border:1px solid #0e7490;border-radius:18px;background:#082f49;padding:18px;text-align:center}.readiness-score strong{font-size:46px;color:#22d3ee;display:block}.readiness-list{border:1px solid var(--border);border-radius:16px;background:#0b1220;padding:14px}.readiness-list ul{margin:0;padding-left:20px;line-height:1.7}.visual-result-chain{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:12px 0}.visual-node{border:1px solid var(--border);border-radius:16px;background:#0b1220;padding:14px;min-height:118px}.visual-node b{display:block;color:#fff;margin-bottom:6px}.visual-node span{display:block;color:#9ca3af;font-size:12px;margin-top:4px}.must-checklist{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}.must-checklist span{border:1px solid #14532d;background:#052e16;color:#bbf7d0;border-radius:999px;padding:8px 10px;font-size:12px}.risk-question-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.result-fold-actions{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}button:disabled,.btn[aria-disabled='true']{opacity:.55;cursor:not-allowed}button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid rgba(34,211,238,.55);outline-offset:2px}.btn:hover{filter:brightness(1.08)}
+@media(max-width:1024px){.simple-master-steps,.scenario-card-grid,.must-checklist{grid-template-columns:repeat(2,minmax(0,1fr))}.readiness-layout{grid-template-columns:1fr}.friendly-field-grid,.system-card-grid,.step-card-grid,.risk-question-grid{grid-template-columns:1fr}}
+@media(max-width:520px){.wrap{padding:16px 10px 42px}.card,.simple-master{padding:14px;border-radius:16px}.simple-master-steps,.scenario-card-grid,.must-checklist{grid-template-columns:1fr}.builder-actions .btn,.simple-master-actions .btn,.report-actions .btn{width:100%;text-align:center}.sticky-submit{position:static!important}body{overflow-x:hidden}input,textarea,select{font-size:16px}}
+
+
+.start-action-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px}.start-action-grid .mode-choice{text-align:left;width:100%}.legacy-wizard-compat{display:none;border:1px dashed #334155;border-radius:18px;padding:14px;margin-top:16px;background:#07111f}body.advanced-mode .legacy-wizard-compat,body.expert-mode .legacy-wizard-compat{display:block}.simple-mode .expert-only{display:none}.expert-mode .simple-only{display:none}.review-mode .simple-design-only{display:none}body.simple-mode details.section,body.review-mode details.section{display:none}body.expert-mode details.section,body.expert-mode details.matrix-section{display:block!important}@media(max-width:760px){.start-action-grid{grid-template-columns:1fr}.start-action-grid .mode-choice{min-height:auto}}
+
+
+*{min-width:0}button,input,textarea,select{max-width:100%}.scenario-card,.system-builder-card,.process-builder-card,.visual-node,.readiness-list{overflow-wrap:anywhere}body{overflow-x:hidden}
+body.simple-mode #progressRail,body.review-mode #progressRail,body.simple-mode .quick-mode-panel,body.simple-mode .legacy-wizard-compat,body.simple-mode .advanced-mode-panel,body.simple-mode .expert-only,body.simple-mode details.section,body.simple-mode details.matrix-section,body.simple-mode .wizard,body.simple-mode .quick,body.simple-mode .checklist,body.simple-mode .ultra-panel,body.simple-mode .beginner-panel,body.simple-mode .sticky-submit{display:none!important}
+.helper-panel{display:none;border:1px dashed #0e7490;background:#082f49;border-radius:16px;padding:14px;margin-top:14px}.helper-panel.is-visible{display:block}.helper-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.helper-result{border:1px solid var(--border);border-radius:14px;background:#0b1220;padding:12px;margin-top:12px}.missing-action{margin-left:8px;padding:6px 9px;border-radius:10px;font-size:12px}.placeholder-warning{display:none;border:1px solid #854d0e;background:#422006;color:#fde68a;border-radius:14px;padding:12px;margin-top:12px}.placeholder-warning.is-visible{display:block}
+@media(max-width:760px){.helper-grid{grid-template-columns:1fr}.missing-action{display:block;width:100%;margin:6px 0 0}.simple-master-actions{position:static}}
+
 </style></head><body><div class="wrap">{content}</div></body></html>"""
 
 def defaults():
@@ -3013,16 +3028,16 @@ def form_page(vals=None):
 </details>""")
     sections=''.join(blocks)
     content_template="""<section class='start-screen card' id='startScreen'>
-  <h1>Что нужно сделать?</h1>
-  <p class='small mobile-hide'>Простой мастер по умолчанию · Интеграционный инструктор v4.9.8</p><p class='muted'>Выберите один путь. На первом экране скрыты raw matrices, ADR, capacity, observability, rollout и полный Markdown — они доступны позже в экспертном режиме и результате.</p>
-  <div class='mode-choice-grid' role='radiogroup' aria-label='Выбор режима работы'>
-    <label class='mode-choice selected'><input type='radio' name='start_choice' value='quick' checked><b>Быстро разобрать задачу</b><span>Вставьте задачу своими словами — система сама соберёт черновик.</span></label>
-    <label class='mode-choice'><input type='radio' name='start_choice' value='wizard'><b>Пошагово спроектировать интеграцию</b><span>Ответьте на простые вопросы, без технических терминов.</span></label>
-    <label class='mode-choice'><input type='radio' name='start_choice' value='review'><b>Проверить существующее решение</b><span>Опишите текущую схему — система найдёт риски и улучшения.</span></label>
-    <label class='mode-choice'><input type='radio' name='start_choice' value='advanced'><b>Продвинутый режим</b><span>Карточки систем, связей, контрактов, ошибок, нагрузки и rollout.</span></label>
-    <label class='mode-choice'><input type='radio' name='start_choice' value='expert'><b>Открыть экспертный режим</b><span>Ручное заполнение технических матриц и расширенных параметров.</span></label>
+  <p class='small mobile-hide'>Простой мастер по умолчанию · Интеграционный инструктор v5.0.9 · совместимость: Интеграционный инструктор v4.9.8</p>
+  <h1>Интеграционный инструктор</h1>
+  <p class='muted'>Помогает спроектировать или проверить интеграцию: REST, Kafka, Webhook, DWH, Outbox, Inbox, Retry, DLQ, SLA, ошибки, нагрузку и риски.</p>
+  <p class='muted'>Начните с простого мастера. Экспертные настройки, raw matrices, ADR, capacity, observability, rollout и полный Markdown доступны отдельно без потери старой функциональности.</p>
+  <div class='start-action-grid' aria-label='Выбор режима работы'>
+    <button type='button' class='mode-choice selected' id='startDesignBtn'><b>Начать проектирование</b><span>Карточки → простые вопросы → системы → цепочка → готовность → отчёт.</span></button>
+    <button type='button' class='mode-choice' id='startReviewBtn'><b>Проверить существующее решение</b><span>Опишите текущую схему — система найдёт риски, дубли, потери и пробелы эксплуатации.</span></button>
+    <button type='button' class='mode-choice' id='startExpertBtn'><b>Расширенный режим</b><span>Все старые экспертные поля, сложные матрицы, быстрый черновик и продвинутые карточки.</span></button>
   </div>
-  <div class='primary-row'><button type='button' class='btn' id='startBtn'>Начать</button></div>
+  <input type='hidden' name='start_choice_advanced_compat' value='advanced'>
   %%RECENT_HTML%%
 </section>
 <div class='app-shell is-hidden' id='appShell'>
@@ -3044,7 +3059,79 @@ def form_page(vals=None):
     <div class='primary-row'><button type='button' class='btn' id='quickDraftBtn'>Разобрать задачу</button></div>
   </section>
   <section class='wizard-mode-panel mode-panel' data-mode-panel='wizard'>
-    <h2>Простой пошаговый мастер</h2><p class='small'>Основной режим: карточки, один главный CTA и возможность выбрать “Не знаю / определить автоматически”.</p>
+    <div class='simple-master' id='simpleWizard'>
+      <h2>Простой мастер: путь без архитектурных терминов</h2>
+      <p class='simple-master-lead'>1. Что нужно сделать? → 2. Что происходит в бизнесе? → 3. Какие системы участвуют? → 4. Как идёт процесс? → 5. Проверка перед отчётом. Незаполненные пункты не блокируют отчёт — они попадут в риски и вопросы.</p>
+      <div class='simple-master-steps' id='simpleWizardSteps' aria-label='Шаги простого мастера'></div>
+      <div class='simple-master-panel is-active' data-simple-panel='0'>
+        <h3>Шаг 1. Что нужно сделать?</h3>
+        <div class='scenario-card-grid' id='scenarioCards'>
+          <button type='button' class='scenario-card is-active' data-scenario='new_rest'><b>Спроектировать новую интеграцию</b><span>REST/API по умолчанию, синхронный ответ, timeout и error mapping.</span></button>
+          <button type='button' class='scenario-card' data-scenario='audit'><b>Проверить существующее решение</b><span>Включит режим аудита, текущие системы, проблемы и контроли.</span></button>
+          <button type='button' class='scenario-card' data-scenario='production'><b>Доработать production-процесс</b><span>Фокус на безопасном rollout, обратимости, владельцах и manual recovery.</span></button>
+          <button type='button' class='scenario-card' data-scenario='e2e'><b>Спроектировать сложную E2E-цепочку</b><span>Несколько систем, статусы, ветвления, Saga/Process Manager.</span></button>
+          <button type='button' class='scenario-card' data-scenario='external_partner'><b>Интеграция с внешним партнёром</b><span>Внешнее API, SLA поставщика, подпись, retry и fallback.</span></button>
+          <button type='button' class='scenario-card' data-scenario='kafka'><b>Kafka / события</b><span>eventId, idempotencyKey, retry, DLQ, replay и consumer lag.</span></button>
+          <button type='button' class='scenario-card' data-scenario='dwh'><b>DWH / отчётность</b><span>Batch/CDC, lineage, полнота, late data и reconciliation.</span></button>
+          <button type='button' class='scenario-card' data-scenario='legacy_file'><b>Legacy / file exchange</b><span>File adapter, validation, checksum, quarantine и reprocessing.</span></button>
+          <button type='button' class='scenario-card' data-scenario='webhook'><b>Webhook / callback</b><span>requestId, signature, callback validation, idempotency, status polling fallback.</span></button>
+          <button type='button' class='scenario-card' data-scenario='hot_status'><b>Горячий экран статуса</b><span>Read Model / Cache, freshness, staleness policy и fallback.</span></button>
+          <button type='button' class='scenario-card' data-scenario='financial'><b>Финансовая / критичная операция</b><span>business idempotency, operationId, audit, reconciliation, compensation.</span></button>
+          <button type='button' class='scenario-card' data-scenario='help_me_choose' id='scenarioHelperCard'><b>Не знаю, помогите выбрать</b><span>Ответьте на несколько вопросов — мастер предложит подходящий сценарий, но выбор можно изменить вручную.</span></button>
+        </div>
+        <div class='helper-panel' id='scenarioHelperPanel'>
+          <h3>Мини-опрос для выбора сценария</h3>
+          <div class='helper-grid'>
+            <label class='field'><span>Пользователь ждёт результат сразу?</span><select id='helperImmediate'><option value='unknown'>Не знаю</option><option value='yes'>Да</option><option value='no'>Нет</option></select></label>
+            <label class='field'><span>Данные надо просто показать, передать или сохранить?</span><select id='helperSaveOrReport'><option value='unknown'>Не знаю</option><option value='show'>Показать</option><option value='transfer'>Передать</option><option value='save'>Сохранить</option><option value='report'>Отчётность / DWH</option></select></label>
+            <label class='field'><span>Есть много получателей события?</span><select id='helperManyConsumers'><option value='unknown'>Не знаю</option><option value='yes'>Да</option><option value='no'>Нет</option></select></label>
+            <label class='field'><span>Есть внешняя система или провайдер?</span><select id='helperExternal'><option value='unknown'>Не знаю</option><option value='yes'>Да</option><option value='no'>Нет</option></select></label>
+            <label class='field'><span>Есть деньги / критичная операция?</span><select id='helperCriticalMoney'><option value='unknown'>Не знаю</option><option value='yes'>Да</option><option value='no'>Нет</option></select></label>
+          </div>
+          <div class='helper-result'><b id='helperRecommendation'>Похоже, вам подходит простая REST-интеграция</b><p class='small' id='helperReason'>Ответьте на вопросы — рекомендация обновится автоматически.</p><button type='button' class='btn' id='applyHelperScenarioBtn'>Применить этот сценарий</button></div>
+        </div>
+      </div>
+      <div class='simple-master-panel' data-simple-panel='1'>
+        <h3>Шаг 2. Что происходит в бизнесе?</h3>
+        <div class='friendly-field-grid'>
+          <div class='friendly-field'><label for='simpleUserAction'>Кто запускает процесс?</label><input id='simpleUserAction' data-map-field='user_action' value='Пользователь или сервис инициирует процесс'></div>
+          <div class='friendly-field'><label for='simpleBusinessGoal'>Что должно произойти?</label><textarea id='simpleBusinessGoal' data-map-field='business_goal'>Нужно передать результат между системами безопасно и наблюдаемо.</textarea></div>
+          <div class='friendly-field'><label for='simpleCustomerVisible'>Кто видит результат?</label><select id='simpleCustomerVisible' data-map-field='customer_visible'><option value='yes'>Пользователь/клиент</option><option value='no'>Только внутренние системы</option><option value='mixed'>Частично</option></select></div>
+          <div class='friendly-field'><label for='simpleUnavailable'>Что делать при ошибке?</label><select id='simpleUnavailable'><option value='show_error'>Показать понятную ошибку</option><option value='degraded'>Показать частичный/устаревший результат</option><option value='queue_for_later'>Поставить в очередь и обработать позже</option><option value='manual_recovery'>Передать в ручное восстановление</option></select></div>
+          <div class='friendly-field'><label for='simpleMoney'>Есть финансовый риск?</label><select id='simpleMoney'><option value='no'>Нет</option><option value='yes'>Да</option><option value='indirect'>Косвенно / возможно</option></select></div>
+          <div class='friendly-field'><label for='simplePii'>Есть персональные данные?</label><select id='simplePii' data-map-field='sensitivity'><option value='internal'>Нет / внутренние</option><option value='pii'>Да, ПДн</option><option value='financial'>Финансовые данные</option><option value='high'>Критичные данные</option></select></div>
+          <div class='friendly-field'><label for='simpleReg'>Есть регуляторные требования?</label><select id='simpleReg' data-map-field='regulatory_impact'><option value='no'>Нет</option><option value='yes'>Да</option><option value='unknown'>Не знаю</option></select></div>
+          <div class='friendly-field'><label for='simpleResponse'>Нужен ответ сразу?</label><select id='simpleResponse'><option value='sync'>Да, пользователь ждёт</option><option value='async'>Можно обработать позже</option><option value='mixed'>Часть сразу, часть в фоне</option></select></div>
+          <div class='friendly-field'><label for='simpleBackground'>Можно обработать в фоне?</label><select id='simpleBackground'><option value='yes'>Да</option><option value='no'>Нет</option><option value='partly'>Частично</option></select></div>
+          <div class='friendly-field'><label for='simpleStale'>Можно показать устаревшие данные?</label><select id='simpleStale'><option value='acceptable'>Да, если пометить свежесть</option><option value='bad'>Нежелательно</option><option value='critical'>Нельзя</option></select></div>
+          <div class='friendly-field'><label for='simpleFreshnessReq'>Требование к свежести</label><select id='simpleFreshnessReq'><option value='seconds'>Секунды</option><option value='minutes'>Минуты</option><option value='daily'>Раз в день</option><option value='unknown'>Не знаю</option></select></div>
+        </div>
+      </div>
+      <div class='simple-master-panel' data-simple-panel='2'>
+        <h3>Шаг 3. Какие системы участвуют?</h3>
+        <div class='system-card-grid' id='systemBuilder'></div>
+        <div class='builder-actions'><button type='button' class='btn mini-btn' id='addSystemBtn'>+ Добавить систему</button><button type='button' class='btn secondary mini-btn' id='syncSystemsBtn'>Собрать systems_matrix</button><button type='button' class='btn ghost mini-btn' id='toggleSystemsMatrixBtn'>Показать экспертную матрицу</button></div>
+        <div class='expert-matrix-collapsed' id='systemsMatrixPreview'></div>
+      </div>
+      <div class='simple-master-panel' data-simple-panel='3'>
+        <h3>Шаг 4. Как идёт процесс?</h3>
+        <label class='friendly-field'><span>Шаблон цепочки</span><select id='simpleChainTemplate'><option value='rest'>REST A → B</option><option value='kafka'>API → Kafka → Consumer</option><option value='orchestrator'>API → Orchestrator → несколько сервисов</option><option value='webhook'>External provider → Webhook callback</option><option value='rest_enrichment_kafka'>Source → REST enrichment → Kafka</option><option value='shared_topic'>Shared Kafka topic → Filter → DB</option><option value='legacy_file'>Legacy file → Adapter → Target</option><option value='dwh'>DWH batch / CDC</option><option value='outbox_inbox'>Outbox → Kafka → Inbox</option><option value='hot_status'>Горячий экран статуса через Read Model / Cache</option></select></label>
+        <div class='builder-actions'><button type='button' class='btn secondary mini-btn' id='applyChainTemplateBtn'>Применить шаблон</button></div>
+        <div class='step-card-grid' id='stepBuilder'></div>
+        <div class='builder-actions'><button type='button' class='btn mini-btn' id='addStepBtn'>+ Добавить шаг</button><button type='button' class='btn secondary mini-btn' id='syncStepsBtn'>Собрать process_steps</button><button type='button' class='btn ghost mini-btn' id='toggleStepsMatrixBtn'>Показать экспертную матрицу</button></div>
+        <div class='expert-matrix-collapsed' id='stepsMatrixPreview'></div>
+      </div>
+      <div class='simple-master-panel' data-simple-panel='4'>
+        <h3>Шаг 5. Проверка перед отчётом</h3>
+        <div class='readiness-layout'><div class='readiness-score'><strong id='simpleReadyScore'>0%</strong><span>Готовность к отчёту</span></div><div class='readiness-list'><b>Заполнено</b><ul id='simpleReadyDone'></ul></div><div class='readiness-list'><b>Не заполнено / попадёт в риски</b><ul id='simpleReadyMissing'></ul></div></div>
+        <p class='muted'>Можно сформировать отчёт сейчас. Незаполненные пункты попадут в риски и вопросы.</p>
+        <div class='placeholder-warning' id='placeholderWarning'>Добавлены placeholder-значения. Перед production их нужно уточнить. Они попадут в риски отчёта.</div>
+        <div class='builder-actions'><button type='button' class='btn' id='simpleGenerateBtn'>Сформировать отчёт</button><button type='button' class='btn secondary' id='fillMissingBtn'>Заполнить недостающее</button><button type='button' class='btn ghost' id='openAdvancedFromReadyBtn'>Открыть расширенный режим</button></div>
+      </div>
+      <div class='simple-master-actions'><button type='button' class='btn secondary' id='simplePrevBtn'>Назад</button><button type='button' class='btn' id='simpleNextBtn'>Далее</button><button type='button' class='btn ghost' id='simplePowerBtn'>Расширенный режим</button></div>
+    </div>
+    <div class='legacy-wizard-compat expert-only'>
+    <h2>Совместимый продвинутый мастер</h2><p class='small'>Старый мастер скрыт в простом режиме. Он доступен только в advanced/expert mode для совместимости с прежними полями и тестовыми сценариями.</p>
     <div class='wizard-step-card'><h3>Шаг 1. Тип задачи</h3><div class='mode-choice-grid compact'>
       <label class='mode-choice selected'><input type='radio' name='wizard_task_type' value='data_between_services' checked><b>Передать данные между сервисами</b></label>
       <label class='mode-choice'><input type='radio' name='wizard_task_type' value='external'>Получить данные из внешней системы</label>
@@ -3063,8 +3150,8 @@ def form_page(vals=None):
       <label class='field'><span>Получатель данных — название сервиса</span><input name='wizard_target_name' value='Target Service'></label>
       <label class='field'><span>Что он должен получить</span><input name='wizard_target_data' value='событие/статус/документ'></label>
       <label class='field'><span>Как быстро нужны данные?</span><select name='wizard_target_speed'><option value='immediate'>Сразу</option><option value='seconds'>Секунды</option><option value='minutes'>Минуты</option><option value='hours'>Часы</option><option value='daily'>Раз в день</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
-    </div><div class='chip-group'><label class='chip'><input type='checkbox' name='wizard_extra_systems' value='сервис обогащения'> сервис обогащения</label><label class='chip'><input type='checkbox' name='wizard_extra_systems' value='внешняя система'> внешняя система</label><label class='chip'><input type='checkbox' name='wizard_extra_systems' value='DWH'> DWH</label><label class='chip'><input type='checkbox' name='wizard_extra_systems' value='UI/клиент'> UI/клиент</label><label class='chip'><input type='checkbox' name='wizard_extra_systems' value='брокер сообщений'> брокер сообщений</label><label class='chip'><input type='checkbox' name='wizard_extra_systems' value='legacy-система'> legacy-система</label><label class='chip'><input type='checkbox' name='wizard_extra_systems' value='база данных'> база данных</label><label class='chip'><input type='checkbox' name='wizard_extra_systems' value='файловый обмен'> файловый обмен</label></div><button type='button' class='btn ghost' disabled title='Добавление дополнительных карточек будет включено в следующем UX-итерации'>Добавить ещё систему</button></div>
-    <div class='wizard-step-card'><h3>Шаг 3. Цепочка процесса</h3><label class='field'><span>Выберите шаблон</span><select name='wizard_process_template' id='wizardProcessTemplate'><option value='rest'>Service A → REST → Service B</option><option value='kafka'>Service A → Kafka → Service B</option><option value='rest_enrichment_kafka'>Service A → REST enrichment → Kafka → Service B</option><option value='webhook'>External system → callback/webhook → our service</option><option value='api_composition'>User → API → several services → final status</option><option value='dwh'>Service A → DWH → reporting</option><option value='file'>File/SFTP → processing → target system</option><option value='cdc'>DB polling/CDC → consumer → target system</option><option value='auto'>Не знаю / определить автоматически</option></select></label><div class='visual-chain' id='visualChain'>Source Service ↓ REST ↓ Target Service</div><button type='button' class='btn ghost' disabled title='Редактирование цепочки доступно через шаблон и экспертные матрицы'>Добавить шаг</button></div>
+    </div><div class='chip-group'><label class='chip'><input type='checkbox' name='wizard_extra_systems' value='сервис обогащения'> сервис обогащения</label><label class='chip'><input type='checkbox' name='wizard_extra_systems' value='внешняя система'> внешняя система</label><label class='chip'><input type='checkbox' name='wizard_extra_systems' value='DWH'> DWH</label><label class='chip'><input type='checkbox' name='wizard_extra_systems' value='UI/клиент'> UI/клиент</label><label class='chip'><input type='checkbox' name='wizard_extra_systems' value='брокер сообщений'> брокер сообщений</label><label class='chip'><input type='checkbox' name='wizard_extra_systems' value='legacy-система'> legacy-система</label><label class='chip'><input type='checkbox' name='wizard_extra_systems' value='база данных'> база данных</label><label class='chip'><input type='checkbox' name='wizard_extra_systems' value='файловый обмен'> файловый обмен</label></div><button type='button' class='btn ghost' id='legacyAddSystemBtn'>Добавить ещё систему</button></div>
+    <div class='wizard-step-card'><h3>Шаг 3. Цепочка процесса</h3><label class='field'><span>Выберите шаблон</span><select name='wizard_process_template' id='wizardProcessTemplate'><option value='rest'>Service A → REST → Service B</option><option value='kafka'>Service A → Kafka → Service B</option><option value='rest_enrichment_kafka'>Service A → REST enrichment → Kafka → Service B</option><option value='webhook'>External system → callback/webhook → our service</option><option value='api_composition'>User → API → several services → final status</option><option value='dwh'>Service A → DWH → reporting</option><option value='file'>File/SFTP → processing → target system</option><option value='cdc'>DB polling/CDC → consumer → target system</option><option value='auto'>Не знаю / определить автоматически</option></select></label><div class='visual-chain' id='visualChain'>Source Service ↓ REST ↓ Target Service</div><button type='button' class='btn ghost' id='legacyAddStepBtn'>Добавить шаг</button></div>
     <div class='wizard-step-card'><h3>Шаг 4. Ограничения</h3><div class='simple-question-grid'>
       <label class='field'><span>Можно ли создавать новый сервис?</span><select name='constraint_new_service'><option value='yes'>Да</option><option value='no'>Нет</option><option value='partial'>Частично</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
       <label class='field'><span>Можно ли менять контракт?</span><select name='constraint_contract'><option value='yes'>Да</option><option value='no'>Нет</option><option value='partial'>Частично</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
@@ -3079,6 +3166,7 @@ def form_page(vals=None):
       <label class='field'><span>Нужно ли потом сверять полноту данных?</span><select name='risk_reconciliation'><option value='yes'>Да</option><option value='no'>Нет</option><option value='maybe'>Возможно</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
       <label class='field'><span>Что делать с ошибочными сообщениями?</span><select name='risk_bad_messages'><option value='yes'>Отправлять в разбор</option><option value='no'>Не знаю</option><option value='maybe'>Возможно</option><option value='unknown'>Не знаю / определить автоматически</option></select></label>
     </div><div class='primary-row'><button type='button' class='btn' id='wizardReviewBtn'>Проверить понимание</button></div></div>
+    </div>
   </section>
   <section class='review-mode-panel mode-panel' data-mode-panel='review'>
     <h2>Проверить существующее решение</h2><p class='small'>Опишите текущую схему простыми словами. Система включит audit-mode, найдёт риски и предложит безопасные улучшения без обязательного перепроектирования.</p>
@@ -3266,7 +3354,7 @@ def form_page(vals=None):
   const stepMeterText = document.getElementById('stepMeterText');
   const readinessMeterText = document.getElementById('readinessMeterText');
   const uxAdvice = document.getElementById('uxAdvice');
-  const MATRIX_EXAMPLES = {"systems_matrix": "Source Service | владелец данных | Team A | critical | REST/Kafka | blocking | 2s\\nTarget Service | получает результат | Team B | important | REST/Kafka | non_blocking | 30s", "process_steps": "0 | 1 | root | Принять команду/изменение | Source Service | REST | request | accepted | 2s | no | validation error | blocking | Team A\\n1 | 2 | 1 | Передать/обработать результат | Target Service | Kafka/REST | event/request | result | 30s | yes | DLQ/manual | non_blocking | Team B", "fields": "entityId:uuid|required|unique|indexed, status:string|required|indexed, updatedAt:datetime|required, idempotencyKey:string|unique, correlationId:string|indexed", "error_matrix": "timeout | Target Service | blocking | yes | retry with backoff + status ERROR | Team B\\nduplicate | Consumer | non_blocking | no | ignore by idempotencyKey/eventId | Team B", "target_integration_matrix": "Source Service | Target Service | Kafka | async | entity.changed | entity payload | EntityChanged.v1 | 30s | yes/backoff | 5 | yes | eventId+aggregateVersion | service auth | 100 rps | Team B", "process_flow_matrix": "S1 | root | request accepted | принять запрос | API | S2 | E_VALIDATION | E_TIMEOUT | none | no\\nS2 | S1 | data ready | отправить downstream | Producer | S3 | E_DELIVERY | E_TIMEOUT | retry/DLQ | yes\\nS3 | S2 | result received | обновить статус | Consumer | END | E_PROCESSING | E_RETRY | manual task | yes", "contract_matrix": "EVENT | EntityChanged | Source Service | Target Service | entity.changed.v1 | entityId as key | entityId,status,updatedAt,correlationId | reason,metadata | schema_error,duplicate,timeout | v1 | backward", "business_rules_matrix": "BR1 | пришёл дубль по idempotencyKey/eventId | не выполнять бизнес-действие повторно | S2 | Backend owner | DUPLICATE_IGNORED\\nBR2 | downstream недоступен после retry | создать DLQ/manual task и статус ошибки | S3 | Operations owner | DELIVERY_FAILED", "capacity_matrix": "main_flow | 100 | 500 | 5 | 50 | 1000000 | 100% | 6 | 3 | 100 | 60s | 24h | 24h | уточнить", "observability_matrix": "consumer_lag | Kafka consumer | > 10000 events | yes | Platform | Integration dashboard\\ndlq_size | DLQ | > 0 for 15m | yes | Operations | Failure dashboard\\nstuck_status_count | status table | > 0 for 15m | yes | Support | Operations dashboard", "rollout_migration_matrix": "P1 | pilot users | feature toggle | выключить toggle | no | compare counts/statuses | no critical errors | Backend owner\\nP2 | full flow | phased rollout | rollback toggle + replay failed period | 24h | compare business metrics | duplicates/losses = 0 | Product/Platform", "data_quality_lineage_matrix": "Entity | Source Service | Target Service | required fields not null + status/version consistency | each event | logs/reconciliation | Data owner\\nEntityStatus | Target Service | DWH | count by status + checksum by id | hourly/daily | reconciliation report | Data platform", "current_systems_matrix": "api | API заявок | service | Product team | critical | yes | application\\nkafka | Kafka | broker | Platform | critical | yes | events\\ncrm | CRM | external_service | CRM team | important | no | customer_card", "current_integration_matrix": "api | kafka | Kafka | async | no | status event | 1s | yes | 3 | no | no | service | Product team\\nkafka | crm | Kafka/event | async | no | status event | 30s | yes | 5 | yes | eventId | service | CRM team", "current_process_steps": "0 | root | 1 | Создать заявку | frontend | api | REST | yes | CREATED | ERROR | retry | yes\\n1 | 1 | 2 | Опубликовать событие | api | kafka | Kafka | no | EVENT_SENT | EVENT_ERROR | DLQ/manual | yes", "current_error_matrix": "kafka_publish_error | api | technical | no | yes | log_only | no | Platform | no\\ncrm_error | crm | technical | no | yes | dlq/manual | yes | CRM team | yes", "current_problem_matrix": "duplicates | crm | weekly | дубли статусов в CRM | manual cleanup\\nlost_event | api_to_kafka | monthly | CRM/DWH не видят часть изменений | manual reload"};
+  const MATRIX_EXAMPLES = %%MATRIX_EXAMPLES%%;
   let currentStep = 0;
   const designSteps = ['Старт', 'Системы и цепочка', 'Связи, контракты и правила', 'Capacity, rollout и финал'];
   const auditSteps = ['Старт', 'Текущее решение', 'Проверка и внедрение'];
@@ -3367,9 +3455,21 @@ def form_page(vals=None):
   const validateBtn = document.getElementById('validateBtn'); if (validateBtn) validateBtn.addEventListener('click',()=>{ refreshUx(); const firstWarn = checklist.querySelector('.warn'); if (firstWarn) firstWarn.scrollIntoView({behavior:'smooth',block:'center'}); });
   const openCurrentBtn = document.getElementById('openCurrentBtn'); if (openCurrentBtn) openCurrentBtn.addEventListener('click',()=>{ currentSections().forEach(sec=>sec.open=true); });
   const fillVisibleExamplesBtn = document.getElementById('fillVisibleExamplesBtn'); if (fillVisibleExamplesBtn) fillVisibleExamplesBtn.addEventListener('click',()=>{ currentSections().forEach(sec=>sec.querySelectorAll('textarea').forEach(t=>{ if (!String(t.value||'').trim() && MATRIX_EXAMPLES[t.name]) setField(t.name, MATRIX_EXAMPLES[t.name]); })); refreshUx(); });
-  function setField(name, value) {
+
+  function getField(name) {
     const els = Array.from(document.querySelectorAll(`[name="${name}"]`));
-    if (!els.length) return;
+    if (!els.length) return '';
+    if (els[0].type === 'checkbox') return els.filter(x=>x.checked).map(x=>x.value).join(',');
+    return String(els[0].value || '').trim();
+  }
+  function setField(name, value) {
+    let els = Array.from(document.querySelectorAll(`[name="${name}"]`));
+    if (!els.length) {
+      const formEl = document.getElementById('mainForm');
+      if (!formEl) return;
+      const hidden = document.createElement('input');
+      hidden.type = 'hidden'; hidden.name = name; formEl.appendChild(hidden); els = [hidden];
+    }
     els.forEach(el => {
       const values = Array.isArray(value) ? value : String(value).split(',').map(x=>x.trim()).filter(Boolean);
       if (el.type === 'checkbox') {
@@ -3618,8 +3718,9 @@ ${entity}Status | ${systems[1] || 'Core'} | ${systems[2] || 'Consumer/DWH'} | co
   };
   function switchProgressiveMode(mode){
     if(uxModeInput) uxModeInput.value = mode;
-    document.body.classList.remove('quick-mode','wizard-mode','advanced-mode','expert-mode','review-mode');
+    document.body.classList.remove('quick-mode','wizard-mode','advanced-mode','expert-mode','review-mode','simple-mode');
     document.body.classList.add(mode+'-mode');
+    if(mode === 'wizard') document.body.classList.add('simple-mode');
     if(mode === 'expert') document.body.classList.add('power-mode'); else document.body.classList.remove('power-mode');
     document.querySelectorAll('[data-mode-panel]').forEach(p=>p.classList.toggle('active-mode-panel', p.dataset.modePanel===mode || (mode==='advanced' && p.dataset.modePanel==='wizard')));
     const m = modeMeta[mode] || modeMeta.wizard;
@@ -3663,13 +3764,225 @@ ${entity}Status | ${systems[1] || 'Core'} | ${systems[2] || 'Consumer/DWH'} | co
     if((uxModeInput||{}).value !== 'expert' && !progressiveConfirmed){ e.preventDefault(); showReview(); }
   });
   const processTemplate = document.getElementById('wizardProcessTemplate'); if(processTemplate) processTemplate.addEventListener('change',()=>{
-    const map={rest:'Source Service\n↓\nREST\n↓\nTarget Service',kafka:'Source Service\n↓\nOutbox\n↓\nKafka\n↓\nTarget Consumer',rest_enrichment_kafka:'Source Service\n↓\nREST enrichment\n↓\nOutbox\n↓\nKafka\n↓\nTarget Consumer',webhook:'External system\n↓\ncallback/webhook\n↓\nOur service',api_composition:'User\n↓\nAPI\n↓\nSeveral services\n↓\nFinal status',dwh:'Source Service\n↓\nDWH\n↓\nReporting',file:'File/SFTP\n↓\nProcessing\n↓\nTarget system',cdc:'DB polling/CDC\n↓\nConsumer\n↓\nTarget system',auto:'Source Service\n↓\nНе знаю / определить автоматически\n↓\nTarget Service'};
+    const map={rest:'Source Service\\n↓\\nREST\\n↓\\nTarget Service',kafka:'Source Service\\n↓\\nOutbox\\n↓\\nKafka\\n↓\\nTarget Consumer',rest_enrichment_kafka:'Source Service\\n↓\\nREST enrichment\\n↓\\nOutbox\\n↓\\nKafka\\n↓\\nTarget Consumer',webhook:'External system\\n↓\\ncallback/webhook\\n↓\\nOur service',api_composition:'User\\n↓\\nAPI\\n↓\\nSeveral services\\n↓\\nFinal status',dwh:'Source Service\\n↓\\nDWH\\n↓\\nReporting',file:'File/SFTP\\n↓\\nProcessing\\n↓\\nTarget system',cdc:'DB polling/CDC\\n↓\\nConsumer\\n↓\\nTarget system',auto:'Source Service\\n↓\\nНе знаю / определить автоматически\\n↓\\nTarget Service'};
     const vc=document.getElementById('visualChain'); if(vc) vc.textContent=map[processTemplate.value]||map.auto;
   });
 
+  const simpleWizardLabels = ['Что нужно сделать?', 'Бизнес', 'Системы', 'Процесс', 'Проверка'];
+  let simpleWizardStep = 0;
+  const systemRows = [
+    {name:'Source Service', role:'Источник данных', criticality:'Высокая', owner:'Команда источника', channel:'REST'},
+    {name:'Target Service', role:'Получатель данных', criticality:'Высокая', owner:'Команда получателя', channel:'REST'}
+  ];
+  const processRows = [
+    {actor:'Source Service', action:'Отправляет запрос или событие', channel:'REST', wait:'Да', error:'Показать ошибку + retry limit', dedup:'correlationId'},
+    {actor:'Target Service', action:'Обрабатывает и сохраняет результат', channel:'REST', wait:'Да', error:'Manual recovery', dedup:'idempotencyKey'}
+  ];
+  const scenarioPresets = {
+    new_rest:{task_type:'new_from_scratch', channel:'rest', wizardTask:'data_between_services', template:'rest', situations:['application_or_order_creation'], goal:'Система A вызывает систему B по REST, пользователь ждёт ответ сразу, при ошибке видит понятное сообщение.'},
+    audit:{task_type:'audit_existing_solution', channel:'rest', wizardTask:'check_existing', template:'rest', situations:['existing_solution_audit'], goal:'Проверить существующее интеграционное решение, найти риски дублей, потерь, таймаутов и ручного восстановления.'},
+    production:{task_type:'add_to_existing', channel:'rest', wizardTask:'complex_process', template:'orchestrator', situations:['multi_step_business_process'], goal:'Доработать production-процесс без потери текущей функциональности, с безопасным rollout и rollback.'},
+    e2e:{task_type:'e2e_chain', channel:'kafka', wizardTask:'complex_process', template:'orchestrator', situations:['multi_step_business_process','application_or_order_creation'], goal:'Спроектировать сложную E2E-цепочку с несколькими системами, статусами, retry и ручным восстановлением.'},
+    external_partner:{task_type:'external_partner', channel:'rest', wizardTask:'external', template:'webhook', situations:['external_api_dependency','unstable_external_provider'], goal:'Интегрироваться с внешним партнёром с валидацией, таймаутами, подписью, fallback и reconciliation.'},
+    kafka:{task_type:'event_domain', channel:'kafka', wizardTask:'kafka_event', template:'kafka', situations:['highload_write_stream','one_source_many_consumers'], goal:'Сервис публикует событие изменения, потребители читают и обновляют свои данные; событие нельзя потерять, возможны дубли.'},
+    dwh:{task_type:'dwh_analytics', channel:'etl', wizardTask:'dwh', template:'dwh', situations:['dwh_reporting','batch_processing'], goal:'Передавать данные из production-контура в DWH через batch/CDC с lineage, полнотой и сверкой.'},
+    legacy_file:{task_type:'legacy_integration', channel:'file', wizardTask:'external', template:'legacy_file', situations:['legacy_integration','batch_processing'], goal:'Legacy-система отдаёт файл по расписанию; новая система валидирует, загружает и умеет переобрабатывать.'},
+    webhook:{task_type:'external_partner', channel:'webhook', wizardTask:'webhook', template:'webhook', situations:['webhook_callback','external_api_dependency'], goal:'Внешний провайдер принимает запрос и позже присылает callback; нужны requestId, подпись, retry и idempotency.'},
+    hot_status:{task_type:'new_from_scratch', channel:'cache', wizardTask:'multi_source', template:'hot_status', situations:['client_status_screen','highload_read','read_model'], goal:'Пользователь часто смотрит статус; нужен быстрый ответ через read model/cache и понятная политика устаревших данных.'},
+    financial:{task_type:'e2e_chain', channel:'rest', wizardTask:'complex_process', template:'outbox_inbox', situations:['financial_operation','distributed_transaction_saga','exactly_once_required'], goal:'Финансовая или критичная операция: нельзя задвоить выполнение, нужна трассировка, аудит, reconciliation и compensation.'}
+  };
+  function renderSimpleWizardSteps(){
+    const box=document.getElementById('simpleWizardSteps'); if(!box) return;
+    box.innerHTML=simpleWizardLabels.map((x,i)=>`<button type="button" class="simple-master-step ${i===simpleWizardStep?'is-active':''} ${i<simpleWizardStep?'is-done':''}" data-simple-step="${i}"><b>${i+1}</b>${escapeHtml(x)}</button>`).join('');
+    box.querySelectorAll('[data-simple-step]').forEach(b=>b.addEventListener('click',()=>{ simpleWizardStep=Number(b.dataset.simpleStep); showSimpleWizardStep(); }));
+  }
+  function showSimpleWizardStep(){
+    renderSimpleWizardSteps();
+    document.querySelectorAll('[data-simple-panel]').forEach(p=>p.classList.toggle('is-active', Number(p.dataset.simplePanel)===simpleWizardStep));
+    const prev=document.getElementById('simplePrevBtn'), next=document.getElementById('simpleNextBtn');
+    if(prev){ prev.disabled=false; prev.setAttribute('aria-label', simpleWizardStep===0 ? 'Остаться на первом шаге' : 'Назад'); }
+    if(next){ next.disabled=false; next.textContent='Далее'; next.style.display=simpleWizardStep>=simpleWizardLabels.length-1 ? 'none' : ''; }
+    syncSimpleToAdvanced(); refreshReadiness();
+  }
+  function renderSystems(){
+    const box=document.getElementById('systemBuilder'); if(!box) return;
+    box.innerHTML=systemRows.map((r,i)=>`<div class="system-builder-card" data-system-index="${i}"><h4>Система ${i+1}</h4><label>Название:<input data-system-field="name" value="${escapeHtml(r.name)}"></label><label>Роль:<select data-system-field="role"><option>Источник данных</option><option>Получатель данных</option><option>Внешний сервис</option><option>Брокер / Kafka</option><option>База / DWH</option><option>UI / frontend</option><option>Оркестратор / backend</option><option>Сервис обогащения</option></select></label><label>Критичность:<select data-system-field="criticality"><option>Низкая</option><option>Средняя</option><option>Высокая</option><option>Mission critical</option></select></label><label>Владелец:<input data-system-field="owner" value="${escapeHtml(r.owner)}"></label><label>Канал:<select data-system-field="channel"><option>REST</option><option>Kafka</option><option>DB</option><option>File</option><option>Webhook</option><option>DWH</option><option>Unknown</option></select></label><div class="builder-actions"><button type="button" class="btn ghost mini-btn" data-system-duplicate="${i}">Дублировать систему</button><button type="button" class="btn secondary mini-btn" data-system-remove="${i}">Удалить систему</button></div></div>`).join('');
+    box.querySelectorAll('[data-system-index]').forEach(card=>{ const i=Number(card.dataset.systemIndex); ['role','criticality','channel'].forEach(k=>{ const el=card.querySelector(`[data-system-field="${k}"]`); if(el) el.value=systemRows[i][k]; }); });
+    box.querySelectorAll('[data-system-field]').forEach(el=>el.addEventListener('input', readSystemsFromDom));
+    box.querySelectorAll('[data-system-field]').forEach(el=>el.addEventListener('change', readSystemsFromDom));
+    box.querySelectorAll('[data-system-remove]').forEach(b=>b.addEventListener('click',()=>{ if(systemRows.length>1){ systemRows.splice(Number(b.dataset.systemRemove),1); renderSystems(); rebuildSystemsMatrix(); }}));
+    box.querySelectorAll('[data-system-duplicate]').forEach(b=>b.addEventListener('click',()=>{ systemRows.splice(Number(b.dataset.systemDuplicate)+1,0,{...systemRows[Number(b.dataset.systemDuplicate)]}); renderSystems(); rebuildSystemsMatrix(); }));
+  }
+  function readSystemsFromDom(){ document.querySelectorAll('[data-system-index]').forEach(card=>{ const i=Number(card.dataset.systemIndex); systemRows[i]=systemRows[i]||{}; card.querySelectorAll('[data-system-field]').forEach(el=>{ systemRows[i][el.dataset.systemField]=el.value; }); }); rebuildSystemsMatrix(); refreshReadiness(); }
+  function rebuildSystemsMatrix(){
+    const lines=systemRows.map(r=>`${r.name||'System'} | ${r.role||'участник'} | ${r.owner||'owner уточнить'} | ${(r.criticality||'Средняя').toLowerCase()} | ${r.channel||'Unknown'} | ${(r.channel||'').toLowerCase().includes('rest')?'blocking':'non_blocking'} | SLA уточнить`);
+    setField('systems_matrix', lines.join('\\n'));
+    const preview=document.getElementById('systemsMatrixPreview'); if(preview) preview.innerHTML=`<label>Экспертная матрица systems_matrix<textarea readonly>${escapeHtml(lines.join('\\n'))}</textarea></label>`;
+  }
+  function renderProcess(){
+    const box=document.getElementById('stepBuilder'); if(!box) return;
+    box.innerHTML=processRows.map((r,i)=>`<div class="process-builder-card" data-process-index="${i}"><h4>Шаг ${i+1}</h4><label>Кто выполняет:<input data-process-field="actor" value="${escapeHtml(r.actor)}"></label><label>Что делает:<textarea data-process-field="action">${escapeHtml(r.action)}</textarea></label><label>Канал:<select data-process-field="channel"><option>REST</option><option>Kafka</option><option>Webhook</option><option>DB</option><option>File</option><option>DWH</option><option>Unknown</option></select></label><label>Ждём ответ сразу?<select data-process-field="wait"><option>Да</option><option>Нет</option><option>Частично</option></select></label><label>Что делать при ошибке?<input data-process-field="error" value="${escapeHtml(r.error)}"></label><label>Что защищает от дублей?<input data-process-field="dedup" value="${escapeHtml(r.dedup)}"></label><div class="builder-actions"><button type="button" class="btn ghost mini-btn" data-step-up="${i}">Переместить выше</button><button type="button" class="btn ghost mini-btn" data-step-down="${i}">Переместить ниже</button><button type="button" class="btn secondary mini-btn" data-step-remove="${i}">Удалить шаг</button></div></div>`).join('');
+    box.querySelectorAll('[data-process-index]').forEach(card=>{ const i=Number(card.dataset.processIndex); ['channel','wait'].forEach(k=>{ const el=card.querySelector(`[data-process-field="${k}"]`); if(el) el.value=processRows[i][k]; }); });
+    box.querySelectorAll('[data-process-field]').forEach(el=>el.addEventListener('input', readProcessFromDom));
+    box.querySelectorAll('[data-process-field]').forEach(el=>el.addEventListener('change', readProcessFromDom));
+    box.querySelectorAll('[data-step-remove]').forEach(b=>b.addEventListener('click',()=>{ if(processRows.length>1){ processRows.splice(Number(b.dataset.stepRemove),1); renderProcess(); rebuildProcessMatrix(); }}));
+    box.querySelectorAll('[data-step-up]').forEach(b=>b.addEventListener('click',()=>{ const i=Number(b.dataset.stepUp); if(i>0){ [processRows[i-1],processRows[i]]=[processRows[i],processRows[i-1]]; renderProcess(); rebuildProcessMatrix(); }}));
+    box.querySelectorAll('[data-step-down]').forEach(b=>b.addEventListener('click',()=>{ const i=Number(b.dataset.stepDown); if(i<processRows.length-1){ [processRows[i+1],processRows[i]]=[processRows[i],processRows[i+1]]; renderProcess(); rebuildProcessMatrix(); }}));
+  }
+  function readProcessFromDom(){ document.querySelectorAll('[data-process-index]').forEach(card=>{ const i=Number(card.dataset.processIndex); processRows[i]=processRows[i]||{}; card.querySelectorAll('[data-process-field]').forEach(el=>{ processRows[i][el.dataset.processField]=el.value; }); }); rebuildProcessMatrix(); refreshReadiness(); }
+  function rebuildProcessMatrix(){
+    const lines=processRows.map((r,i)=>`${i} | ${i+1} | ${i?i:'root'} | ${r.action||'Выполнить шаг'} | ${r.actor||'System'} | ${r.channel||'Unknown'} | input | output | SLA уточнить | ${(r.error||'').toLowerCase().includes('retry')?'yes':'no'} | ${r.error||'manual recovery'} | ${r.wait==='Да'?'blocking':'non_blocking'} | owner уточнить`);
+    setField('process_steps', lines.join('\\n')); setField('process_flow_matrix', lines.map((l,i)=>`S${i+1} | ${i?'S'+i:'root'} | step ${i+1} | ${(processRows[i]||{}).action||'step'} | ${(processRows[i]||{}).actor||'System'} | ${i===processRows.length-1?'END':'S'+(i+2)} | E_VALIDATION | E_TIMEOUT | ${(processRows[i]||{}).error||'manual recovery'} | yes`).join('\\n'));
+    const preview=document.getElementById('stepsMatrixPreview'); if(preview) preview.innerHTML=`<label>Экспертная матрица process_steps<textarea readonly>${escapeHtml(lines.join('\\n'))}</textarea></label>`;
+  }
+  function applyChainTemplate(){
+    const t=(document.getElementById('simpleChainTemplate')||{}).value||'rest';
+    const chains={rest:[['Source Service','Вызывает Target Service по REST','REST','Да','timeout + error mapping','correlationId'],['Target Service','Возвращает результат или понятную ошибку','REST','Да','manual recovery','idempotencyKey']],kafka:[['API','Принимает команду и пишет Outbox','REST','Да','validation error','idempotencyKey'],['Publisher','Публикует событие в Kafka','Kafka','Нет','retry + DLQ','eventId'],['Consumer','Читает событие и обновляет БД','Kafka','Нет','retry + DLQ + replay','eventId / inbox']],orchestrator:[['API','Создаёт процесс и статус','REST','Да','reject/manual','trackingId'],['Orchestrator','Вызывает несколько сервисов','REST','Частично','retry + compensation','operationId'],['Service','Возвращает результат шага','REST','Да','timeout/manual','correlationId']],webhook:[['Our API','Отправляет запрос провайдеру','REST','Да','timeout + retry limit','requestId'],['External provider','Позже присылает callback','Webhook','Нет','signature validation + retry','requestId'],['Our service','Обновляет статус и сверяет результат','DB','Нет','manual reconciliation','idempotencyKey']],rest_enrichment_kafka:[['Source Service','Готовит pending outbox','DB','Нет','retry state','aggregateVersion'],['Enrichment Worker','Запрашивает данные через REST','REST','Нет','timeout + fallback','correlationId'],['Publisher','Публикует enriched event','Kafka','Нет','DLQ + replay','eventId']],shared_topic:[['Shared topic','Consumer читает все события','Kafka','Нет','poison message DLQ','eventId'],['Filter','Отбирает нужные события по полю','Kafka','Нет','metrics skipped/processed','eventId'],['DB','Сохраняет только нужную проекцию','DB','Нет','backpressure/manual','idempotencyKey']],legacy_file:[['Legacy','Выгружает файл по расписанию','File','Нет','missing file alert','fileId'],['Adapter','Проверяет checksum и формат','File','Нет','quarantine','checksum'],['Target','Загружает валидные записи','DB','Нет','reprocessing','recordId']],dwh:[['Source DB','Отдаёт изменения через CDC/batch','DB','Нет','watermark retry','recordId'],['DWH pipeline','Загружает и проверяет качество','DWH','Нет','late data handling','batchId'],['Data mart','Публикует витрину и lineage','DWH','Нет','reconciliation','lineageId']],outbox_inbox:[['Source Service','Фиксирует бизнес-изменение и Outbox в одной транзакции','DB','Да','rollback local tx','operationId'],['Publisher','Публикует в Kafka at-least-once','Kafka','Нет','retry + DLQ','eventId'],['Consumer','Обрабатывает через Inbox/idempotency','Kafka','Нет','dedup + replay','idempotencyKey']],hot_status:[['Sources','Асинхронно обновляют read model','Kafka','Нет','retry + stale marker','eventId'],['Read Model / Cache','Хранит быстрый статус','DB','Нет','refresh fallback','entityId'],['UI','Показывает статус и свежесть','REST','Да','degraded response','correlationId']]};
+    processRows.splice(0,processRows.length,...(chains[t]||chains.rest).map(x=>({actor:x[0],action:x[1],channel:x[2],wait:x[3],error:x[4],dedup:x[5]}))); renderProcess(); rebuildProcessMatrix();
+    const templateMap={rest:'rest',kafka:'kafka',orchestrator:'api_composition',webhook:'webhook',rest_enrichment_kafka:'rest_enrichment_kafka',shared_topic:'kafka',legacy_file:'file',dwh:'dwh',outbox_inbox:'kafka',hot_status:'api_composition'}; if(processTemplate){ processTemplate.value=templateMap[t]||'rest'; processTemplate.dispatchEvent(new Event('change',{bubbles:true})); }
+  }
+  function applyScenarioPreset(name){
+    const p=scenarioPresets[name]||scenarioPresets.new_rest;
+    document.querySelectorAll('.scenario-card').forEach(c=>c.classList.toggle('is-active', c.dataset.scenario===name));
+    setField('task_type', p.task_type); setField('business_goal', p.goal); setField('business_situations', p.situations); setRadio('wizard_task_type', p.wizardTask); setField('allowed_channels', [p.channel]);
+    if(p.channel==='kafka'){ systemRows.splice(0,systemRows.length,{name:'Source Service',role:'Источник данных',criticality:'Высокая',owner:'Команда source',channel:'Kafka'},{name:'Kafka topic',role:'Брокер / Kafka',criticality:'Mission critical',owner:'Platform',channel:'Kafka'},{name:'Target Consumer',role:'Получатель данных',criticality:'Высокая',owner:'Команда consumer',channel:'Kafka'}); }
+    else if(p.channel==='file'){ systemRows.splice(0,systemRows.length,{name:'Legacy System',role:'Источник данных',criticality:'Высокая',owner:'Legacy team',channel:'File'},{name:'File Adapter',role:'Сервис обогащения',criticality:'Высокая',owner:'Integration team',channel:'File'},{name:'Target System',role:'Получатель данных',criticality:'Высокая',owner:'Target team',channel:'DB'}); }
+    else { systemRows.splice(0,systemRows.length,{name:'Source Service',role:'Источник данных',criticality:'Высокая',owner:'Команда source',channel:p.channel==='webhook'?'Webhook':'REST'},{name:'Target Service',role:'Получатель данных',criticality:'Высокая',owner:'Команда target',channel:p.channel==='etl'?'DWH':'REST'}); }
+    renderSystems(); rebuildSystemsMatrix(); const chain=document.getElementById('simpleChainTemplate'); if(chain){ chain.value=p.template; applyChainTemplate(); }
+    applyScenarioSafety(name, p); syncSimpleToAdvanced(); refreshReadiness();
+  }
+  function scenarioTargetMatrix(channel, mode, trigger, contract, owner){
+    return `Source Service | Target Service | ${channel} | ${mode} | ${trigger} | business payload | ${contract} | ${mode==='sync'?'3s':'30s'} | yes/backoff | 3 | ${mode==='sync'?'no':'yes'} | idempotencyKey+correlationId | service auth | уточнить | ${owner}`;
+  }
+  function applyScenarioSafety(name, p){
+    if(name==='new_rest'){
+      setField('task_type','new_from_scratch'); setField('result_model','sync'); setField('response_time_expectation','under_3s'); setField('allowed_channels',['rest']); setField('delivery_guarantee','at_most_once_with_retry_policy');
+      setField('error_matrix','timeout | target_api | blocking | yes | show error + retry by user action | source team\\nvalidation_error | target_api | blocking | no | map error to user/client | target team\\n5xx | target_api | blocking | yes | retry with backoff + circuit breaker | platform team');
+      setField('target_integration_matrix', scenarioTargetMatrix('REST','sync','user_action','API.v1','source team'));
+    }
+    if(name==='kafka' || p.channel==='kafka'){
+      setField('task_type','event_integration'); setField('result_model','tracking'); setField('response_time_expectation','async_ok'); setField('allowed_channels',['kafka']); setField('delivery_guarantee','business_exactly_once');
+      setField('existing_capabilities',['kafka','outbox','inbox','dlq','monitoring']);
+      setField('error_matrix','duplicate | consumer | non_blocking | no | ignore by eventId/idempotencyKey | consumer team\\ntimeout | publisher | non_blocking | yes | retry with backoff | platform team\\npoison_message | consumer | non_blocking | no | DLQ + manual recovery | consumer team');
+      setField('observability_matrix','consumer_lag | kafka consumer | warning | yes | team | Kafka dashboard\\ndlq_size | dlq | critical | yes | team | DLQ dashboard\\nreplay_count | consumer | info | yes | team | Replay dashboard');
+      setField('target_integration_matrix', scenarioTargetMatrix('Kafka','async','business_event','Event.v1','consumer team'));
+    }
+    if(name==='e2e' || (document.getElementById('simpleChainTemplate')||{}).value==='outbox_inbox'){
+      setField('delivery_guarantee','business_exactly_once'); setField('existing_capabilities',['outbox','kafka','inbox','dlq','monitoring','reconciliation']); setField('consistency','eventual_ok');
+    }
+    if(name==='webhook' || p.channel==='webhook'){
+      setField('task_type','external_integration'); setField('result_model','callback'); setField('allowed_channels',['webhook','rest']); setField('delivery_guarantee','at_least_once_with_idempotency');
+      setField('webhook_signature_required','yes'); setField('webhook_raw_body_preserved','yes');
+      setField('error_matrix','duplicate_callback | callback_api | non_blocking | no | ignore by requestId/idempotencyKey | integration team\\ninvalid_signature | callback_api | blocking | no | reject + audit | security owner\\nprovider_timeout | provider_api | blocking | yes | retry limit + status polling fallback | integration team');
+      setField('observability_matrix','callback_validation_error | callback API | > 0 for 15m | yes | Security | Callback dashboard\\nprovider_timeout_rate | provider API | > 5% for 15m | yes | Integration team | Provider dashboard\\nmanual_reconciliation_count | operations | > 0 | yes | Operations | Reconciliation dashboard');
+      setField('target_integration_matrix', scenarioTargetMatrix('Webhook/REST','async','external_callback','Callback.v1','integration team'));
+    }
+    if(name==='dwh' || p.channel==='etl'){
+      setField('task_type','dwh_reporting'); setField('result_model','report'); setField('allowed_channels',['cdc','etl','sftp']); setField('freshness_requirement','daily'); setField('lineage_required','yes'); setField('data_quality_required','yes'); setField('delivery_guarantee','replayable_batch_or_cdc');
+      setField('existing_capabilities',['batch','cdc','dwh','monitoring']);
+      setField('error_matrix','missing_batch | dwh_load | non_blocking | yes | alert + reload batch | data team\\nschema_change | dwh_load | blocking | no | quarantine + contract update | data owner\\nlate_data | dwh_load | non_blocking | yes | late arrival processing | data team');
+      setField('observability_matrix','batch_freshness | DWH pipeline | outside SLA | yes | Data team | DWH dashboard\\nreconciliation_diff | DWH quality | > 0 critical records | yes | Data owner | Quality dashboard\\nlate_events_count | DWH load | unexpected spike | yes | Data team | Lineage dashboard');
+      setField('target_integration_matrix', scenarioTargetMatrix('CDC/ETL/File','async','batch_or_cdc','DWHContract.v1','data team'));
+    }
+    if(name==='legacy_file' || p.channel==='file'){
+      setField('task_type','legacy_integration'); setField('allowed_channels',['sftp']); setField('result_model','report'); setField('delivery_guarantee','file_reprocess_with_checksum'); setField('existing_capabilities',['batch','monitoring']);
+      setField('error_matrix','missing_file | file_exchange | blocking | yes | alert + manual upload fallback | integration team\\nbad_checksum | file_validation | blocking | no | quarantine file | integration team\\ninvalid_rows | parser | non_blocking | yes | reject bad rows + report | data owner');
+      setField('observability_matrix','file_arrival_delay | scheduler | outside window | yes | Integration team | File dashboard\\nquarantine_size | adapter | > 0 | yes | Integration team | Quarantine dashboard\\nprocessed_records | target load | mismatch with manifest | yes | Target owner | Load dashboard');
+      setField('target_integration_matrix', scenarioTargetMatrix('File/SFTP','async','scheduled_file','FileContract.v1','integration team'));
+    }
+    if(name==='financial'){
+      setField('criticality','mission'); setField('money_impact','yes'); setField('regulatory_impact','yes'); setField('delivery_guarantee','business_exactly_once'); setField('audit_required','yes'); setField('observability','regulated');
+      setField('existing_capabilities',['idempotency','audit','reconciliation','manual_recovery','monitoring']);
+      setField('error_matrix','duplicate_operation | operation_api | blocking | no | reject by operationId/idempotencyKey | business owner\\npartial_success | process | blocking | yes | compensation + reconciliation | operations team\\naudit_missing | audit | blocking | no | block release until audit is fixed | compliance owner');
+      setField('target_integration_matrix', scenarioTargetMatrix('REST/Kafka','async','financial_operation','Operation.v1','business owner'));
+    }
+  }
+  const responseMap={
+    sync:{result_model:'sync',response_time_expectation:'under_3s'},
+    async:{result_model:'tracking',response_time_expectation:'async_ok'},
+    mixed:{result_model:'mixed',response_time_expectation:'seconds'}
+  };
+  const unavailableMap={show_error:'show_error',degraded:'show_stale',queue_for_later:'queue_for_later',manual_recovery:'manual_review'};
+  const staleMap={acceptable:{stale_data_impact:'acceptable',consistency:'eventual_ok'},bad:{stale_data_impact:'bad_ux',consistency:'near_real_time'},critical:{stale_data_impact:'critical',consistency:'strict'}};
+  const freshnessMap={seconds:'seconds',minutes:'minutes',daily:'daily',unknown:'unknown'};
+  const moneyMap={no:'no',yes:'yes',indirect:'maybe'};
+  function syncSimpleToAdvanced(){
+    document.querySelectorAll('[data-map-field]').forEach(el=>setField(el.dataset.mapField, el.value));
+    const response = responseMap[document.getElementById('simpleResponse')?.value || 'sync'] || responseMap.sync;
+    setField('result_model', response.result_model); setField('response_time_expectation', response.response_time_expectation);
+    const unavailable = document.getElementById('simpleUnavailable')?.value || 'show_error'; setField('unavailable_behavior', unavailableMap[unavailable] || 'show_error');
+    const money=document.getElementById('simpleMoney')?.value || 'no'; setField('money_impact', moneyMap[money] || 'no');
+    const stale=staleMap[document.getElementById('simpleStale')?.value || 'acceptable'] || staleMap.acceptable; setField('stale_data_impact', stale.stale_data_impact); setField('consistency', stale.consistency);
+    const fresh=document.getElementById('simpleFreshnessReq')?.value || 'unknown'; setField('freshness_requirement', freshnessMap[fresh] || 'unknown');
+    rebuildSystemsMatrix(); rebuildProcessMatrix();
+  }
+  function syncAdvancedToSimple(){ const g=getField('business_goal'); const el=document.getElementById('simpleBusinessGoal'); if(el && g) el.value=g; }
+  function isMeaningful(value){ const v=String(value||'').trim().toLowerCase(); return Boolean(v) && !['unknown','not_defined','none','unclear','auto','default','tbd','todo','уточнить','не знаю','не указано','не задано','неизвестно','n/a','na','-','уточнить перед production'].includes(v); }
+  function isMeaningfulNumber(value){ const v=String(value||'').trim(); if(!v) return false; if(['уточнить','unknown','not_defined'].includes(v.toLowerCase())) return false; return !Number.isNaN(Number(v)); }
+  function focusSimpleField(fieldId){ const el=document.getElementById(fieldId); if(!el) return; el.scrollIntoView({behavior:'smooth',block:'center'}); el.focus(); }
+  const readinessFieldMap={'SLA':'simpleFreshnessReq','нагрузка':'simpleChainTemplate','rollback':'simpleChainTemplate','владелец ручного восстановления':'stepBuilder','обработка ошибок':'stepBuilder','delivery guarantee':'scenarioCards','observability':'scenarioCards'};
+  function refreshReadiness(){
+    const checks=[
+      ['бизнес-цель',isMeaningful(getField('business_goal')),'simpleBusinessGoal'],['системы',isMeaningful(getField('systems_matrix')),'systemBuilder'],['цепочка процесса',isMeaningful(getField('process_steps')),'stepBuilder'],['канал интеграции',isMeaningful(getField('allowed_channels'))||isMeaningful(getField('target_integration_matrix')),'scenarioCards'],['обработка ошибок',isMeaningful(getField('error_matrix')),'stepBuilder'],['delivery guarantee',isMeaningful(getField('delivery_guarantee')),'scenarioCards'],['observability',isMeaningful(getField('observability_matrix')),'scenarioCards'],['SLA',isMeaningful(getField('target_lag_seconds')),'simpleFreshnessReq'],['нагрузка',isMeaningfulNumber(getField('rps'))||isMeaningful(getField('load_profile')),'simpleChainTemplate'],['rollback',isMeaningful(getField('rollback_plan'))||isMeaningful(getField('rollout_migration_matrix')),'simpleChainTemplate'],['владелец ручного восстановления',isMeaningful(getField('manual_recovery_owner'))||/owner|team|команда|владелец/i.test(getField('error_matrix')+getField('process_steps')),'stepBuilder']
+    ];
+    const done=checks.filter(x=>x[1]), miss=checks.filter(x=>!x[1]); const pct=Math.round(done.length/checks.length*100);
+    const score=document.getElementById('simpleReadyScore'), d=document.getElementById('simpleReadyDone'), m=document.getElementById('simpleReadyMissing');
+    if(score) score.textContent=pct+'%'; if(d) d.innerHTML=done.map(x=>`<li>✓ ${escapeHtml(x[0])}</li>`).join('');
+    if(m) m.innerHTML=miss.map(x=>`<li>! ${escapeHtml(x[0])} <button type="button" class="btn ghost missing-action" data-focus-field="${escapeHtml(x[2])}">Заполнить</button></li>`).join('') || '<li>Нет явных пропусков</li>';
+    if(m) m.querySelectorAll('[data-focus-field]').forEach(btn=>btn.addEventListener('click',()=>focusSimpleField(btn.dataset.focusField)));
+  }
+  function safeOn(id,event,handler){ const el=document.getElementById(id); if(!el){ console.warn('Cannot bind handler, element missing:', id); return; } el.addEventListener(event,handler); }
+  function recommendHelperScenario(){
+    const immediate=document.getElementById('helperImmediate')?.value || 'unknown';
+    const saveOrReport=document.getElementById('helperSaveOrReport')?.value || 'unknown';
+    const manyConsumers=document.getElementById('helperManyConsumers')?.value || 'unknown';
+    const external=document.getElementById('helperExternal')?.value || 'unknown';
+    const criticalMoney=document.getElementById('helperCriticalMoney')?.value || 'unknown';
+    let scenario='new_rest';
+    if(criticalMoney==='yes') scenario='financial';
+    else if(saveOrReport==='report') scenario='dwh';
+    else if(manyConsumers==='yes') scenario='kafka';
+    else if(external==='yes' && immediate==='no') scenario='webhook';
+    else if(immediate==='yes' && external==='no') scenario='new_rest';
+    const labels={new_rest:'REST A → B',kafka:'Kafka / события',webhook:'Webhook / callback',dwh:'DWH / отчётность',financial:'Финансовая / критичная операция'};
+    const reasons={new_rest:'Пользователь ждёт ответ сразу, поэтому нужен синхронный контракт, timeout и понятная ошибка.',kafka:'Есть много получателей или событие нужно безопасно раздать асинхронно.',webhook:'Есть внешний провайдер и результат приходит позже callback-ом.',dwh:'Цель похожа на отчётность, batch/CDC, lineage и сверку качества данных.',financial:'Есть деньги или критичная операция: нужны идемпотентность, аудит и reconciliation.'};
+    const title=document.getElementById('helperRecommendation'), reason=document.getElementById('helperReason'), apply=document.getElementById('applyHelperScenarioBtn');
+    if(title) title.textContent='Похоже, вам подходит: '+labels[scenario]; if(reason) reason.textContent=reasons[scenario]; if(apply) apply.dataset.applyScenario=scenario;
+    return scenario;
+  }
+  function showScenarioHelper(){ const panel=document.getElementById('scenarioHelperPanel'); if(panel) panel.classList.add('is-visible'); recommendHelperScenario(); }
+  document.querySelectorAll('.scenario-card').forEach(b=>b.addEventListener('click',()=>{ if(b.dataset.scenario==='help_me_choose') showScenarioHelper(); else applyScenarioPreset(b.dataset.scenario); }));
+  ['helperImmediate','helperSaveOrReport','helperManyConsumers','helperExternal','helperCriticalMoney'].forEach(id=>safeOn(id,'change',recommendHelperScenario));
+  safeOn('applyHelperScenarioBtn','click',()=>applyScenarioPreset(document.getElementById('applyHelperScenarioBtn')?.dataset.applyScenario || recommendHelperScenario()));
+  const addSystemBtn=document.getElementById('addSystemBtn'); if(addSystemBtn) addSystemBtn.addEventListener('click',()=>{ systemRows.push({name:'Новая система',role:'Получатель данных',criticality:'Средняя',owner:'Владелец уточняется',channel:'Unknown'}); renderSystems(); rebuildSystemsMatrix(); });
+  const syncSystemsBtn=document.getElementById('syncSystemsBtn'); if(syncSystemsBtn) syncSystemsBtn.addEventListener('click',()=>{ readSystemsFromDom(); alert('systems_matrix обновлена из карточек систем.'); });
+  const addStepBtn=document.getElementById('addStepBtn'); if(addStepBtn) addStepBtn.addEventListener('click',()=>{ processRows.push({actor:'System',action:'Выполняет следующий шаг процесса',channel:'Unknown',wait:'Нет',error:'Retry + manual recovery',dedup:'idempotencyKey'}); renderProcess(); rebuildProcessMatrix(); });
+  const syncStepsBtn=document.getElementById('syncStepsBtn'); if(syncStepsBtn) syncStepsBtn.addEventListener('click',()=>{ readProcessFromDom(); alert('process_steps и process_flow_matrix обновлены из конструктора цепочки.'); });
+  const applyChainTemplateBtn=document.getElementById('applyChainTemplateBtn'); if(applyChainTemplateBtn) applyChainTemplateBtn.addEventListener('click',applyChainTemplate);
+  const toggleSystemsMatrixBtn=document.getElementById('toggleSystemsMatrixBtn'); if(toggleSystemsMatrixBtn) toggleSystemsMatrixBtn.addEventListener('click',()=>{ const p=document.getElementById('systemsMatrixPreview'); if(p){ p.classList.toggle('expert-matrix-collapsed'); toggleSystemsMatrixBtn.textContent=p.classList.contains('expert-matrix-collapsed')?'Показать экспертную матрицу':'Скрыть экспертную матрицу'; }});
+  const toggleStepsMatrixBtn=document.getElementById('toggleStepsMatrixBtn'); if(toggleStepsMatrixBtn) toggleStepsMatrixBtn.addEventListener('click',()=>{ const p=document.getElementById('stepsMatrixPreview'); if(p){ p.classList.toggle('expert-matrix-collapsed'); toggleStepsMatrixBtn.textContent=p.classList.contains('expert-matrix-collapsed')?'Показать экспертную матрицу':'Скрыть экспертную матрицу'; }});
+  const simplePrevBtn=document.getElementById('simplePrevBtn'); if(simplePrevBtn) simplePrevBtn.addEventListener('click',()=>{ simpleWizardStep=Math.max(0,simpleWizardStep-1); showSimpleWizardStep(); });
+  const simpleNextBtn=document.getElementById('simpleNextBtn'); if(simpleNextBtn) simpleNextBtn.addEventListener('click',()=>{ simpleWizardStep=Math.min(simpleWizardLabels.length-1,simpleWizardStep+1); showSimpleWizardStep(); });
+  const simplePowerBtn=document.getElementById('simplePowerBtn'); if(simplePowerBtn) simplePowerBtn.addEventListener('click',()=>switchProgressiveMode('expert'));
+  const openAdvancedFromReadyBtn=document.getElementById('openAdvancedFromReadyBtn'); if(openAdvancedFromReadyBtn) openAdvancedFromReadyBtn.addEventListener('click',()=>switchProgressiveMode('expert'));
+  const fillMissingBtn=document.getElementById('fillMissingBtn'); if(fillMissingBtn) fillMissingBtn.addEventListener('click',()=>{ setField('rps','уточнить'); setField('target_lag_seconds','уточнить'); setField('rollback_plan','уточнить перед production'); setField('manual_recovery_owner','уточнить'); if(!isMeaningful(getField('error_matrix'))) setField('error_matrix','timeout | integration | blocking | yes | retry with backoff + manual recovery | owner уточнить\\nduplicate | consumer | non_blocking | no | ignore by idempotencyKey/eventId | owner уточнить'); const warn=document.getElementById('placeholderWarning'); if(warn) warn.classList.add('is-visible'); simpleWizardStep=4; refreshReadiness(); });
+  const simpleGenerateBtn=document.getElementById('simpleGenerateBtn'); if(simpleGenerateBtn) simpleGenerateBtn.addEventListener('click',()=>{ syncSimpleToAdvanced(); progressiveConfirmed=true; document.getElementById('mainForm').submit(); });
+  const legacyAddSystemBtn=document.getElementById('legacyAddSystemBtn'); if(legacyAddSystemBtn) legacyAddSystemBtn.addEventListener('click',()=>{ simpleWizardStep=2; showSimpleWizardStep(); document.getElementById('systemBuilder')?.scrollIntoView({behavior:'smooth',block:'start'}); });
+  const legacyAddStepBtn=document.getElementById('legacyAddStepBtn'); if(legacyAddStepBtn) legacyAddStepBtn.addEventListener('click',()=>{ simpleWizardStep=3; showSimpleWizardStep(); document.getElementById('stepBuilder')?.scrollIntoView({behavior:'smooth',block:'start'}); });
+  const startDesignBtn=document.getElementById('startDesignBtn'); if(startDesignBtn) startDesignBtn.addEventListener('click',()=>switchProgressiveMode('wizard'));
+  const startReviewBtn=document.getElementById('startReviewBtn'); if(startReviewBtn) startReviewBtn.addEventListener('click',()=>{ switchProgressiveMode('review'); setRadio('wizard_task_type','check_existing'); setField('task_type','audit_existing_solution'); applyScenarioPreset('audit'); });
+  const startExpertBtn=document.getElementById('startExpertBtn'); if(startExpertBtn) startExpertBtn.addEventListener('click',()=>switchProgressiveMode('expert'));
+  function checkRequiredButtons(){
+    const ids=['startDesignBtn','startReviewBtn','startExpertBtn','backToStart','simplePrevBtn','simpleNextBtn','simplePowerBtn','simpleGenerateBtn','fillMissingBtn','openAdvancedFromReadyBtn','addSystemBtn','syncSystemsBtn','toggleSystemsMatrixBtn','addStepBtn','syncStepsBtn','toggleStepsMatrixBtn','applyChainTemplateBtn','applyHelperScenarioBtn'];
+    ids.forEach(id=>{ const el=document.getElementById(id); if(!el) console.warn('Missing required UI button:', id); });
+    document.querySelectorAll('button[disabled]').forEach(btn=>{ if(!['simplePrevBtn','simpleNextBtn'].includes(btn.id)) console.warn('Disabled UI button should be reviewed:', btn.id || btn.textContent.trim()); });
+  }
+  checkRequiredButtons();
+  renderSystems(); renderProcess(); applyScenarioPreset('new_rest'); renderSimpleWizardSteps(); refreshReadiness();
+
 })();
 </script>"""
-    content = content_template.replace('%%RECENT_HTML%%', recent_html).replace('%%SECTIONS%%', sections)
+    content = content_template.replace('%%RECENT_HTML%%', recent_html).replace('%%SECTIONS%%', sections).replace('%%MATRIX_EXAMPLES%%', json.dumps(MATRIX_EXAMPLES, ensure_ascii=False))
     return HTML.replace('{content}', content)
 
 
@@ -3925,6 +4238,9 @@ def parse_post(body):
             else:
                 f[qid]=raw.get(qid,[default])[0]
     f['preset_name']=raw.get('preset_name',[''])[0]
+    for extra_key in ['delivery_guarantee','audit_required','rollback_plan','manual_recovery_owner','lineage_required','data_quality_required']:
+        if extra_key in raw:
+            f[extra_key]=raw.get(extra_key,[''])[0]
     return apply_progressive_ui_mapping(raw, f)
 
 def yaml_scalar(v):
@@ -4275,7 +4591,7 @@ def service_chain_markdown(ctx, db):
             lines.append(f"- **{t.get('name','table')}** — {t.get('purpose','')}. Индексы: {', '.join(t.get('indexes',[]) or [])}.\n")
     return ''.join(lines)+'\n'
 
-def result_page(res,rid,fname,bundle_name=None):
+def result_page(res,rid,fname,bundle_name=None,json_name=None):
     rec=res['recommended']; anti=res['anti_patterns']
     decision_state = 'Можно обсуждать с архитектором' if res['readiness'].get('confidence', res['readiness']['score']) >= 55 else 'Нужно уточнить входные данные'
     if any(a.get('severity')=='critical' for a in anti): decision_state = 'Нельзя отдавать в разработку без исправлений'
@@ -4283,6 +4599,14 @@ def result_page(res,rid,fname,bundle_name=None):
     summary_html=''.join(f'<li>{escape(x)}</li>' for x in simple_result_summary(res))
     vars_html=''.join(f'<li><b>{escape(ru_label(v["name"]))}</b> — оценка {v["score"]}%, {escape(v["complexity"])}</li>' for v in res['variants'][:4])
     pattern_html=''.join(f'<span class="pill">{escape(p)}</span>' for p in rec.get('patterns',[])[:8]) or '<span class="pill">паттерны не выбраны</span>'
+    required_items=['Контракт API / события','eventId','correlationId','idempotencyKey','retry with backoff','DLQ','manual recovery','monitoring','alerts','reconciliation','rollback plan','contract tests','load test']
+    must_html=''.join(f'<span>✓ {escape(x)}</span>' for x in required_items)
+    risks_html=''.join(f'<li>{escape(a.get("title", a.get("risk", "risk")))} — {escape(a.get("fix", "уточнить контроль"))}</li>' for a in anti[:6]) or '<li>Явных критичных anti-patterns не найдено; проверьте незаполненные SLA, нагрузку, rollback и владельцев восстановления.</li>'
+    rec_name=ru_label(rec.get('name',''))
+    why_items=(rec.get('why') or rec.get('reasons') or rec.get('patterns') or [])[:6]
+    why_html=''.join(f'<li>{escape(str(x))}</li>' for x in why_items) or '<li>Выбор основан на введённых ограничениях, каналах, критичности, ошибках и требованиях к восстановлению.</li>'
+    visual_nodes=(rec.get('patterns') or ['Source Service','Integration boundary','Target Service'])[:7]
+    visual_html=''.join(f'<div class="visual-node"><b>{escape(str(x))}</b><span>роль: участник решения</span><span>канал/retry/idempotency/state/manual recovery уточняются в полном отчёте</span></div>' for x in visual_nodes)
     gate=res.get('production_gate') or {}
     wizard_gate=res.get('wizard_production_gate') or (res.get('ctx') or {}).get('wizard_production_gate') or {}
     gate_level=str(gate.get('level') or wizard_gate.get('verdict') or 'YELLOW').upper()
@@ -4307,7 +4631,12 @@ def result_page(res,rid,fname,bundle_name=None):
     <div class="production-gate {gate_class}"><h3>Готовность к production: {escape(gate_level)} — {escape(gate_title)}</h3><p class="small">Проверены blocking gaps: idempotency, retry limit, DLQ/manual recovery, correlationId, monitoring, contract tests, rollback, replay, owner, invalid contract handling, external dependency strategy, reconciliation и duplicate control.</p><ul class="todo-list">{gate_gaps}</ul></div>
     <h3>Минимально безопасный вариант / Production-вариант / Целевой вариант</h3><ul class="todo-list"><li>Минимально безопасный вариант: закрыть blocking gaps, включить ограниченный retry, владельца ошибок и наблюдаемость.</li><li>Production-вариант: добавить rollout, replay/recovery drill, contract tests, dashboard и runbook.</li><li>Целевой вариант: перейти к рекомендованной архитектуре с явными контрактами, lineage и эксплуатационными SLO.</li></ul>
     <h3>Альтернативы</h3><ul class="todo-list">{vars_html}</ul>
-    <div class="report-actions"><a class="btn" href="/download?file={escape(fname)}">Скачать Markdown</a>{f'<a class="btn" href="/download?file={escape(bundle_name)}">Скачать пакет документов ZIP</a>' if bundle_name else ''}<a class="btn secondary" href="/run?id={escape(rid)}">Открыть run</a><a class="btn secondary" href="/">Новая генерация</a></div></div>
+    <h3>Короткий итог</h3><div class="simple-result"><h2>Итог: наиболее подходящий вариант по введённым ограничениям — {escape(rec_name)}.</h2><p>Почему:</p><ul class="todo-list">{why_html}</ul></div>
+    <h3>Визуальная схема</h3><div class="visual-result-chain">{visual_html}</div>
+    <h3>Обязательные элементы решения</h3><div class="must-checklist">{must_html}</div>
+    <h3>Риски и вопросы</h3><div class="risk-question-grid"><div class="readiness-list"><b>Что не заполнено / какие риски есть</b><ul class="todo-list">{risks_html}</ul></div><div class="readiness-list"><b>Что проверить перед production</b><ul class="todo-list"><li>SLA, нагрузка и backpressure.</li><li>Rollback, replay/reprocess и manual recovery owner.</li><li>Contract tests, load test, monitoring и alerts.</li><li>Reconciliation для денег, DWH, файлов и критичных операций.</li></ul></div></div>
+    <h3>Альтернативы</h3><ul class="todo-list">{vars_html}</ul>
+    <div class="report-actions"><a class="btn" href="/download?file={escape(fname)}">Скачать markdown</a>{f'<a class="btn" href="/download?file={escape(json_name)}">Скачать JSON bundle</a>' if json_name else ''}{f'<a class="btn" href="/download?file={escape(bundle_name)}">Скачать export bundle / Скачать пакет документов ZIP</a>' if bundle_name else ''}<a class="btn secondary" href="/run?id={escape(rid)}">Открыть run</a><a class="btn secondary" href="/">Вернуться к форме</a></div></div>
     <details class="full-report card"><summary>Показать полный технический отчёт / Markdown / ADR</summary><div class="result">{escape(res['markdown'])}</div></details>'''
     return HTML.replace('{content}', content)
 
@@ -4333,7 +4662,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_html('Payload too large',413)
         body=self.rfile.read(content_length).decode('utf-8')
         try:
-            form=parse_post(body); res=Engine().generate(form); pid,rid,ver=save_run(form,res); fname=f'integration_architect_report_v5_0_9_{ver}_{datetime.now().strftime("%Y%m%d_%H%M%S")}_{rid[:6]}.md'; (OUT_DIR/fname).write_text(res['markdown'],encoding='utf-8'); bundle_name,_,_=make_document_bundle(res,rid,ver); self.send_html(result_page(res,rid,fname,bundle_name))
+            form=parse_post(body); res=Engine().generate(form); pid,rid,ver=save_run(form,res); stamp=datetime.now().strftime("%Y%m%d_%H%M%S"); fname=f'integration_architect_report_v5_0_9_{ver}_{stamp}_{rid[:6]}.md'; (OUT_DIR/fname).write_text(res['markdown'],encoding='utf-8'); json_name=f'integration_architect_bundle_v5_0_9_{ver}_{stamp}_{rid[:6]}.json'; (OUT_DIR/json_name).write_text(json.dumps({'form': form, 'result': {k:v for k,v in res.items() if k!='markdown'}, 'markdown_file': fname}, ensure_ascii=False, indent=2, default=str), encoding='utf-8'); bundle_name,_,_=make_document_bundle(res,rid,ver); self.send_html(result_page(res,rid,fname,bundle_name,json_name))
         except Exception as e:
             self.send_html('<h1>Ошибка</h1><pre>'+escape(str(e))+'</pre>',500)
 def main():
