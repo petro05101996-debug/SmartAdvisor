@@ -64,3 +64,23 @@ def test_custom_async_chain_report_keeps_exact_user_built_flow():
     page = result_page(res, 'custom-async', 'custom-async.md')
     for expected in ['Service 1', 'Service 2 API', 'integration_task DB', 'Worker', 'External Service', 'Status DB', 'trackingId', 'manual recovery']:
         assert expected in page
+
+
+def test_no_text_constructor_buttons_are_wired_and_do_not_submit_accidentally():
+    html = form_page()
+    assert "function startApp" in html
+    assert "on('startNoTextBtn','click',()=>startApp(0))" in html
+    assert "on('prevBtn','click',()=>go(3))" in html
+    assert "on('constructorNext','click',()=>go(step+1))" in html
+    assert "on('confirmUnderstanding','click',()=>go(4))" in html
+    assert "on('applyHelperPick','click',()=>updateCase(pickHelperCase()))" in html
+    assert "function pickHelperCase" in html
+    assert "function on(id,event,handler)" in html
+    assert "document.getElementById('startNoTextBtn').addEventListener" not in html
+
+    constructor_start = html.index("<form method='POST' action='/generate'")
+    constructor_end = html.index("</form>", constructor_start)
+    form_html = html[constructor_start:constructor_end]
+    for fragment in form_html.split('<button')[1:]:
+        head = fragment.split('>', 1)[0]
+        assert "type='button'" in head or 'type="button"' in head or "type='submit'" in head or 'type="submit"' in head
