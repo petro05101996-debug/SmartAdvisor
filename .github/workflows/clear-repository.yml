@@ -1,0 +1,33 @@
+name: Clear repository
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  clear:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Remove all repository files
+        run: |
+          git rm -r --ignore-unmatch .
+          git clean -fdx
+
+      - name: Keep repository non-empty
+        run: |
+          touch .gitkeep
+          git add .gitkeep
+
+      - name: Commit and push cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git commit -m "Clear repository files" || echo "Nothing to commit"
+          git push
