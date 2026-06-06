@@ -1,0 +1,150 @@
+name: Cleanup repository
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_changes:
+        description: "Commit cleanup changes to repository"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Show repository size before cleanup
+        run: |
+          echo "Repository size before cleanup:"
+          du -sh . || true
+          echo
+          echo "Top largest files/directories before cleanup:"
+          du -ah . 2>/dev/null | sort -rh | head -50 || true
+
+      - name: Create or update .gitignore
+        run: |
+          touch .gitignore
+
+          add_ignore() {
+            grep -qxF "$1" .gitignore || echo "$1" >> .gitignore
+          }
+
+          add_ignore "__pycache__/"
+          add_ignore "*.pyc"
+          add_ignore "*.pyo"
+          add_ignore "*.pyd"
+          add_ignore ".pytest_cache/"
+          add_ignore ".mypy_cache/"
+          add_ignore ".ruff_cache/"
+          add_ignore ".coverage"
+          add_ignore "htmlcov/"
+          add_ignore ".DS_Store"
+          add_ignore "Thumbs.db"
+
+          add_ignore ".integration_architect_pro/"
+          add_ignore "generated_integration_architect_reports/"
+          add_ignore "*.sqlite3"
+          add_ignore "*.sqlite"
+          add_ignore "*.db"
+
+          add_ignore "dist/"
+          add_ignore "build/"
+          add_ignore ".cache/"
+          add_ignore "tmp/"
+          add_ignore "temp/"
+          add_ignore "*.log"
+
+          echo "Updated .gitignore:"
+          cat .gitignore
+
+      - name: Remove generated and cache files from working tree
+        run: |
+          echo "Removing generated/cache files..."
+
+          rm -rf generated_integration_architect_reports || true
+          rm -rf .integration_architect_pro || true
+          rm -rf .pytest_cache || true
+          rm -rf .mypy_cache || true
+          rm -rf .ruff_cache || true
+          rm -rf htmlcov || true
+          rm -rf dist || true
+          rm -rf build || true
+          rm -rf .cache || true
+          rm -rf tmp || true
+          rm -rf temp || true
+
+          find . -type d -name "__pycache__" -prune -exec rm -rf {} + || true
+          find . -type f -name "*.pyc" -delete || true
+          find . -type f -name "*.pyo" -delete || true
+          find . -type f -name "*.pyd" -delete || true
+          find . -type f -name "*.sqlite3" -delete || true
+          find . -type f -name "*.sqlite" -delete || true
+          find . -type f -name "*.db" -delete || true
+          find . -type f -name "*.log" -delete || true
+          find . -type f -name ".DS_Store" -delete || true
+          find . -type f -name "Thumbs.db" -delete || true
+
+      - name: Remove ignored files from git index
+        run: |
+          echo "Removing ignored files from git index if already tracked..."
+
+          git rm -r --cached --ignore-unmatch generated_integration_architect_reports || true
+          git rm -r --cached --ignore-unmatch .integration_architect_pro || true
+          git rm -r --cached --ignore-unmatch .pytest_cache || true
+          git rm -r --cached --ignore-unmatch .mypy_cache || true
+          git rm -r --cached --ignore-unmatch .ruff_cache || true
+          git rm -r --cached --ignore-unmatch htmlcov || true
+          git rm -r --cached --ignore-unmatch dist || true
+          git rm -r --cached --ignore-unmatch build || true
+          git rm -r --cached --ignore-unmatch .cache || true
+          git rm -r --cached --ignore-unmatch tmp || true
+          git rm -r --cached --ignore-unmatch temp || true
+
+          git ls-files | grep -E '(__pycache__/|\.pyc$|\.pyo$|\.pyd$|\.sqlite3$|\.sqlite$|\.db$|\.log$|\.DS_Store$|Thumbs.db$)' \
+            | xargs -r git rm --cached --ignore-unmatch || true
+
+      - name: Show repository size after cleanup
+        run: |
+          echo "Repository size after cleanup:"
+          du -sh . || true
+          echo
+          echo "Top largest files/directories after cleanup:"
+          du -ah . 2>/dev/null | sort -rh | head -50 || true
+
+      - name: Show git status
+        run: |
+          git status --short
+
+      - name: Commit cleanup
+        if: ${{ inputs.commit_changes == 'true' }}
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No cleanup changes to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add .gitignore
+          git add -A
+
+          git commit -m "Clean generated files and update gitignore"
+          git push
+
+      - name: Skip commit
+        if: ${{ inputs.commit_changes == 'false' }}
+        run: |
+          echo "Commit disabled. Cleanup was performed only in workflow runner."
