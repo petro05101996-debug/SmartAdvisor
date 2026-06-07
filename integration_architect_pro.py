@@ -958,6 +958,10 @@ def normalize_form(f):
         f['new_service_policy']='reuse_existing_runtime'
     f['business_situations']=situations
     f['forbidden_channels']=sorted(constraints | set(_as_list(f.get('forbidden_channels', []))))
+    # Business-first constructor submits business_case/steps plus lightweight chips; expand them into the same facets
+    # that the legacy rule engine and specialized packs already understand.
+    if f.get('business_case') or f.get('business_steps_json') or f.get('business_process_json'):
+        f = build_scenario_facets_from_business(f)
     return f
 
 def ru_label(x):
@@ -1225,6 +1229,25 @@ CASE_SCHEMAS = {
     'audit': 'Current Solution → Risk Review → Target Improvements → Developer Handoff',
 }
 
+CANONICAL_CASE_SCHEMAS = {
+    'async_worker': 'Client/UI → Application API → integration_task DB → Worker → Target Service → Status DB',
+    'saga_state_machine': 'Initiator → Process Coordinator → Process State DB → Step Services → Compensation / Manual Recovery',
+    'event_kafka': 'Source Service → Business DB → Outbox → Publisher → Event Stream → Consumer → Inbox → Target Service',
+    'shared_topic_selective_consumer': 'Shared Event Stream → Selective Consumer → Filter → Inbox/Dedup Sink → Target Service → DLQ/Reprocess',
+    'enrichment_before_kafka': 'Source Service → Source-owned Outbox → Integration Publisher → REST Enrichment API → Event Stream → Consumer',
+    'webhook_intake': 'External/Internal Request → External Provider → Callback API → Inbox → Async Worker → Status DB',
+    'bff_api_composition': 'Client/UI → BFF/API Composition → Source Services → Cache/Read Model → Partial Response',
+    'dwh_pipeline': 'Source System → CDC/Export → Staging → Data Quality → DWH/Reporting → Reconciliation',
+    'batch_file_exchange': 'Legacy System → File Export → Manifest/Checksum → Staging → Validation → Quarantine/Target',
+    'contract_required_field_missing': 'Contract Source → Compatibility Check → Consumer Contract Tests → Runtime Validation → Rollout',
+    'active_active_financial_write': 'Region API → Operation State Machine → Single Writer/Ledger → Replication/Read Model → Reconciliation',
+    'privacy_erasure_pipeline': 'Erasure Request API → Policy/Legal Hold Check → Per-System Erasure Tasks → Receipts → Audit/Reconciliation',
+    'highload_stream_ingestion': 'Producers → Event Stream Partitions → Stream Processing → Idempotent Sink → Alerting/Consumers → DWH Downstream',
+    'multi_tenant_noisy_neighbor': 'Shared Stream → Tenant-aware Consumer Pool → Per-tenant Quotas → Isolated Sink/Inbox → Lag Metrics',
+    'strangler_migration': 'Client/System → Facade → New Service + Legacy → Shadow Compare → Feature Flag Cutover → Rollback/Reconciliation',
+    'existing_solution_audit': 'Current Solution → Risk Review → Keep/Fix Decisions → Phased Remediation → Regression Tests',
+}
+
 def custom_schema_from_form(form):
     """Return user-built chain schema from no-text constructor payload if present."""
     form = form or {}
@@ -1344,6 +1367,300 @@ def business_order_warnings_from_form(form):
         if w and w not in out:
             out.append(w)
     return out
+
+
+def _json_list_field(form, key):
+    raw = (form or {}).get(key, [])
+    if isinstance(raw, list):
+        return [str(x) for x in raw if str(x).strip()]
+    if isinstance(raw, str) and raw.strip().startswith('['):
+        try:
+            data=json.loads(raw)
+            if isinstance(data, list):
+                return [str(x) for x in data if str(x).strip()]
+        except Exception:
+            pass
+    return _as_list(raw)
+
+def business_constraints_from_form(form):
+    form=form or {}
+    values=[]
+    values.extend(_json_list_field(form, 'business_constraints_json'))
+    values.extend(_json_list_field(form, 'constraint_flags'))
+    values.extend(_as_list(form.get('forbidden_channels', [])))
+    out=[]
+    alias={'source_locked':'source_change_forbidden','no_new_topic':'new_topic_forbidden','no_new_service':'new_service_too_expensive'}
+    for v in values:
+        v=str(v).strip()
+        v=alias.get(v, v)
+        if v and v not in out:
+            out.append(v)
+    return out
+
+def validate_actor_action_pairs(form):
+    warnings=[]
+    for s in ordered_business_steps_from_form(form):
+        actor=str(s.get('actorLabel') or '').lower()
+        action=str(s.get('action') or '').lower()
+        if any(x in actor for x in ['клиент','пользователь']):
+            if 'принимает заявку' in action:
+                warnings.append('Клиент обычно создаёт/отправляет заявку, а принимает её внутренняя система.')
+            if 'проверяет данные' in action:
+                warnings.append('Проверку обычно выполняет система или сотрудник.')
+            if 'обновляет статус' in action:
+                warnings.append('Статус процесса обычно обновляет система.')
+        if 'внешняя система' in actor and 'принимает заявку' in action:
+            warnings.append('Если внешняя система принимает заявку, уточните, кто владелец процесса и статуса.')
+    out=[]
+    for w in warnings:
+        if w not in out: out.append(w)
+    return out
+
+def build_scenario_facets_from_business(form):
+    """Server-side twin of JS buildScenarioFacetsFromBusiness: business input -> legacy engine facets."""
+    form=dict(form or {})
+    situations=list(_as_list(form.get('business_situations', [])))
+    def add(*xs):
+        for x in xs:
+            if x and x not in situations: situations.append(x)
+    constraints=set(business_constraints_from_form(form))
+    bcase=str(form.get('business_case') or '').strip()
+    timing=str(form.get('business_result_timing') or form.get('simple_q_immediate') or '')
+    result=str(form.get('business_result_type') or '')
+    obj=str(form.get('business_object') or '')
+    risk=str(form.get('business_criticality') or form.get('simple_q_risk') or '')
+    steps=ordered_business_steps_from_form(form)
+    step_text=' '.join([f"{x.get('actorLabel','')} {x.get('action','')} {x.get('object','')}" for x in steps] + [str(form.get('business_goal') or ''), str(form.get('quick_description') or '')]).lower()
+    actor_text=' '.join(s.get('actorLabel','') for s in steps).lower()
+    if bcase=='application_creation' or 'созда' in step_text and 'заяв' in step_text:
+        add('application_or_order_creation')
+        form.setdefault('operation_kind','command_create_update')
+        if 'позже' in timing.lower() or 'позже' in step_text:
+            add('multi_step_business_process','async_heavy_processing','long_running_process')
+            form.setdefault('result_model','tracking')
+    if bcase=='data_change_distribution' or 'несколько получателей' in actor_text or 'many_consumers' in constraints:
+        add('data_synchronization','one_source_many_consumers')
+        form['operation_kind']='event_publish'; form.setdefault('result_model','notification')
+        form['allowed_channels']=sorted(set(_as_list(form.get('allowed_channels', [])))|{'kafka','queue'})
+        if 'new_topic_forbidden' in constraints:
+            add('shared_topic_selective_consumer'); form['kafka_topology']='single_topic_only'
+        if 'highload' in constraints:
+            add('highload_write_stream','peak_load_process')
+    if bcase=='data_enrichment' or 'дополняет' in step_text or 'обогащ' in step_text or 'справоч' in obj.lower():
+        add('data_enrichment','event_enrichment_before_publish')
+        form['operation_kind']='event_enrichment'
+        if 'source_change_forbidden' in constraints or 'source_locked' in constraints:
+            add('source_lacks_kafka'); form['source_change_policy']='minimal_table_only'
+    if bcase=='external_check' and ('позже' in timing.lower() or 'ответит позже' in timing.lower()) or 'получает ответ позже' in step_text or 'callback_webhook' in constraints:
+        add('external_api_dependency','webhook_callback')
+        form['result_model']='callback'; form['task_type']='external_partner'
+        if 'unstable_external' in constraints: add('unstable_external_provider')
+    if bcase=='status_screen' or 'несколько систем' in actor_text or 'собирает статус' in step_text or 'many_sources' in constraints:
+        add('client_status_screen','multi_source_aggregation','api_composition','read_model')
+        form['operation_kind']='bff_composition'; form['partial_response_ok']='yes'
+        if 'highload' in constraints: add('highload_read')
+    if bcase=='reporting' or 'отчёт' in step_text or 'отчет' in step_text:
+        add('dwh_reporting','batch_processing')
+        form['operation_kind']='dwh_offload'; form['task_type']='dwh_analytics'; form['replay']='yes'; form['retention']='required'
+    if bcase=='legacy_file' or 'файл' in obj.lower() or 'файл' in step_text or 'старая система' in actor_text:
+        add('legacy_integration','batch_processing')
+        form['operation_kind']='batch_file_exchange'
+    if bcase=='audit':
+        add('existing_solution_audit'); form['task_type']='audit_existing_solution'
+    if bcase=='long_process' or 'compensation' in constraints or 'компенс' in step_text or 'откат' in step_text:
+        add('long_running_process','distributed_transaction_saga','multi_step_business_process','manual_recovery_required')
+        form['orchestration']='orchestrator'; form['result_model']='tracking'
+    if 'contract_change' in constraints or 'required_field' in constraints or any(x in step_text for x in ['контракт','обязательное поле','ошибка маппинга','duplicate response']):
+        add('contract_breaking_change','contract_required_field_missing'); form['task_type']='contract_change'
+    if 'money' in constraints or 'деньг' in risk.lower() or form.get('money_impact')=='yes':
+        add('financial_operation'); form['money_impact']='yes'
+    if 'regulatory' in constraints or 'pii' in constraints:
+        if 'regulatory' in constraints: add('regulatory_process'); form['regulatory_impact']='yes'
+        if 'pii' in constraints: add('personal_data_exchange'); form['sensitivity']='personal'
+    if ('money' in constraints or form.get('money_impact')=='yes') and 'highload' in constraints and 'active_active' in constraints:
+        add('active_active_financial_write','financial_operation','exactly_once_required'); form['delivery']='business_exactly_once'; form['consistency']='strong_on_write'
+    if 'privacy_erasure' in constraints or (('pii' in constraints or 'regulatory' in constraints) and any(x in step_text for x in ['удал','исправ'])):
+        add('privacy_erasure','personal_data_exchange','regulatory_process')
+    if 'highload' in constraints and ('event_publish'==form.get('operation_kind') or 'event' in step_text or 'событ' in step_text):
+        add('highload_stream_ingestion','highload_write_stream'); form['load_profile']='highload'
+    if 'multi_tenant' in constraints:
+        add('multi_tenant_noisy_neighbor','shared_topic_selective_consumer')
+    if 'migration' in constraints:
+        add('migration_or_strangler','legacy_integration'); form['task_type']='replace_legacy'
+    if 'replay' in constraints: form['replay']='yes'
+    if 'Потерять данные' in risk or 'Получить дубль' in risk or 'exactly_once' in constraints:
+        form['delivery']='business_exactly_once'
+    form['step_count']=form.get('step_count') or str(len(steps) or '')
+    form['chain_depth']=form.get('chain_depth') or ('multi_level' if len(steps)>=4 else 'single_level')
+    form['business_situations']=situations
+    form['forbidden_channels']=sorted(set(_as_list(form.get('forbidden_channels', []))) | {c for c in constraints if c in ['new_topic_forbidden','source_change_forbidden','new_service_too_expensive']})
+    actor_warnings=validate_actor_action_pairs(form)
+    if actor_warnings:
+        existing=business_order_warnings_from_form(form)
+        try:
+            raw=json.loads(form.get('business_process_json') or '{}')
+            if isinstance(raw, dict):
+                raw['warnings'] = list(dict.fromkeys((raw.get('warnings') or []) + actor_warnings))
+                form['business_process_json']=json.dumps(raw, ensure_ascii=False)
+        except Exception:
+            pass
+    return form
+
+def specialized_case_from_form(form, base_case_type=None):
+    f=build_scenario_facets_from_business(form)
+    active=set(_as_list(f.get('business_situations', [])))
+    constraints=set(business_constraints_from_form(f)) | set(_as_list(f.get('forbidden_channels', [])))
+    if 'active_active_financial_write' in active: return 'active_active_financial_write'
+    if 'privacy_erasure' in active: return 'privacy_erasure_pipeline'
+    if 'multi_tenant_noisy_neighbor' in active: return 'multi_tenant_noisy_neighbor'
+    if 'migration_or_strangler' in active: return 'strangler_migration'
+    if 'contract_required_field_missing' in active or 'contract_breaking_change' in active: return 'contract_required_field_missing'
+    if 'shared_topic_selective_consumer' in active or 'new_topic_forbidden' in constraints and 'one_source_many_consumers' in active: return 'shared_topic_selective_consumer'
+    if 'event_enrichment_before_publish' in active or 'data_enrichment' in active and (base_case_type=='enrichment_kafka' or f.get('operation_kind')=='event_enrichment'): return 'enrichment_before_kafka'
+    if 'webhook_callback' in active: return 'webhook_intake'
+    if 'distributed_transaction_saga' in active or 'long_running_process' in active and 'multi_step_business_process' in active: return 'saga_state_machine'
+    if 'client_status_screen' in active or 'multi_source_aggregation' in active or 'api_composition' in active: return 'bff_api_composition'
+    if 'highload_stream_ingestion' in active: return 'highload_stream_ingestion'
+    if 'dwh_reporting' in active: return 'dwh_pipeline'
+    if 'legacy_integration' in active and 'batch_processing' in active: return 'batch_file_exchange'
+    if 'existing_solution_audit' in active: return 'existing_solution_audit'
+    return base_case_type or detect_case_type(f)
+
+def build_canonical_schema_for_case(case_type, case_classes=None, business_steps=None, constraints=None):
+    return CANONICAL_CASE_SCHEMAS.get(case_type) or CASE_SCHEMAS.get(case_type) or CASE_SCHEMAS['sync_rest']
+
+def case_specific_handoff(case_class, base_case_type=None):
+    m={
+      'async_worker':['POST endpoint contract','202 Accepted + trackingId','GET /status contract','integration_task DDL','status model','idempotency unique constraint','worker retry policy','manual recovery procedure','stuck task monitoring','тесты duplicate/timeout/retry/status'],
+      'event_kafka':['event schema','outbox DDL','publisher rules','partition/key strategy','consumer inbox DDL','DLQ/reprocess','schema compatibility tests','lag metrics'],
+      'shared_topic_selective_consumer':['filtering rules','discard rate metric','consumer lag','per-message decision log','DLQ/reprocess','idempotent sink'],
+      'enrichment_before_kafka':['source-owned fact contract','Integration Publisher rules','REST enrichment API contract','dataAsOf/freshness policy','enrichmentConsistency rules','FAILED/reprocess procedure','event ownership decision'],
+      'webhook_intake':['external request contract','callback endpoint contract','auth/signature validation','raw body preservation','inbox DDL','idempotent callback transition','timeout/polling fallback'],
+      'saga_state_machine':['process state model','step status matrix','compensation matrix','compensation_failed process','manual recovery owner','audit trail','partial success tests'],
+      'bff_api_composition':['BFF contract','per-source timeout policy','partial response contract','freshness marker/dataAsOf','cache/read model rules','read-your-writes policy'],
+      'dwh_pipeline':['export/CDC contract','watermark','staging DDL','data quality rules','reconciliation rules','backfill procedure','retention/archive policy'],
+      'batch_file_exchange':['file format','manifest/checksum','file registry DDL','validation rules','quarantine process','reprocessing procedure','ack/error file contract'],
+      'contract_required_field_missing':['OpenAPI/AsyncAPI diff','required fields matrix','consumer-driven contract tests','examples success/duplicate/error','compatibility policy','rollout/migration plan'],
+      'privacy_erasure_pipeline':['erasure request contract','legal hold decision matrix','per-system erasure receipt','audit log','retention exceptions','reconciliation report'],
+      'active_active_financial_write':['operation ledger','single writer decision','idempotency key','reconciliation','split-brain handling','manual correction procedure'],
+      'multi_tenant_noisy_neighbor':['tenantId key','per-tenant quotas','per-tenant lag metrics','consumer pool isolation','noisy neighbor alerts'],
+      'strangler_migration':['facade contract','parallel run plan','shadow compare report','feature flags','rollback plan','reconciliation rules'],
+      'highload_stream_ingestion':['partitioning/key strategy','backpressure policy','lag metrics','replay procedure','out-of-order handling','stream processing contract'],
+      'existing_solution_audit':['risk register','what to keep','mandatory fixes','blockers','phased remediation plan','current-solution regression tests'],
+    }
+    return m.get(case_class) or m.get(base_case_type or '', required_items_for_case(base_case_type or 'sync_rest'))
+
+def case_class_narrative(case_class, base_case_type, form):
+    active=', '.join(_as_list((form or {}).get('business_situations', []))[:8])
+    labels={
+      'saga_state_machine':'long-running process / saga state machine',
+      'shared_topic_selective_consumer':'shared topic filtering / selective consumer',
+      'enrichment_before_kafka':'REST enrichment before Kafka / Integration Publisher',
+      'webhook_intake':'webhook/callback intake',
+      'bff_api_composition':'BFF/API Composition fan-in',
+      'dwh_pipeline':'DWH pipeline / operational offload',
+      'batch_file_exchange':'legacy batch/file exchange',
+      'contract_required_field_missing':'contract-first required field change',
+      'active_active_financial_write':'active-active financial write guard',
+      'privacy_erasure_pipeline':'privacy erasure / legal hold pipeline',
+      'multi_tenant_noisy_neighbor':'multi-tenant noisy-neighbor stream',
+      'strangler_migration':'migration / strangler',
+      'highload_stream_ingestion':'highload stream ingestion',
+      'existing_solution_audit':'existing solution audit',
+    }
+    label=labels.get(case_class, case_class)
+    reason=active or 'business-first признаки и ограничения'
+    return f'Базовый case_type: {base_case_type}. Распознанный сложный кейс: {case_class} ({label}). Почему: {reason}. Это меняет решение: схема, must-have, риски и handoff выбираются по специализированному кейсу, а не по generic-шаблону.'
+
+
+def specialized_case_summary(specialized_case, base_case_type, form):
+    summaries={
+        'saga_state_machine':'Базово это async-процесс, но из-за многошаговости, денег/договоров и компенсации это не просто worker, а управляемая state machine. Поэтому нужны Process State DB, статусы шагов, retry per step, compensation_failed и manual recovery.',
+        'shared_topic_selective_consumer':'Так как новый поток/topic запрещён или один поток читают разные потребители, используется общий поток и selective consumer. Поэтому нужны filtering rules, discard rate, consumer lag, per-message decision log, DLQ/reprocess и идемпотентный sink.',
+        'enrichment_before_kafka':'Так как перед публикацией нужны дополнительные данные, а source менять нельзя/дорого, нужен source-owned outbox и Integration Publisher/enrichment adapter с REST Enrichment API, dataAsOf, freshness и enrichmentConsistency.',
+        'webhook_intake':'Так как внешний провайдер отвечает позже, основной запрос нельзя считать синхронным. Нужны Callback API, quick ack, signature validation, raw body preservation, Inbox и idempotent callback transition с timeout/polling fallback.',
+        'bff_api_composition':'Это не запись, а fan-in/read path для экрана. Поэтому нужны BFF/API Composition, per-source timeout, partial response, freshness marker/dataAsOf, cache/read model и read-your-writes policy.',
+        'dwh_pipeline':'Это отчётный/offload-контур, который не должен блокировать operational flow. Поэтому нужны CDC/export, watermark, staging, data quality, lineage, reconciliation, backfill и retention/archive.',
+        'batch_file_exchange':'Это legacy batch/file exchange, поэтому нужны file_id, manifest/checksum, batch_id, file registry, staging validation, quarantine, ack/error file и reprocessing.',
+        'contract_required_field_missing':'Это contract-first изменение, а не проектирование с нуля. Поэтому source of truth — OpenAPI/AsyncAPI, required fields gate, consumer-driven contract tests, compatibility policy и rollout/migration plan.',
+        'active_active_financial_write':'Финансовая запись в нескольких регионах не может быть обычным event/async. Нужны single writer или ledger, idempotency key, strong write decision, reconciliation, split-brain handling и защита от double spend.',
+        'privacy_erasure_pipeline':'Удаление/исправление ПДн — regulatory workflow. Нужны erasure request id, legal hold decision, per-system erasure tasks, receipts, retention exceptions, audit и reconciliation.',
+        'highload_stream_ingestion':'Highload stream ingestion требует проектирования потока: partitioning/key strategy, backpressure, lag monitoring, replay, out-of-order handling, idempotent sink и downstream DWH только как потребитель.',
+        'multi_tenant_noisy_neighbor':'В общем потоке много tenants, значит нужен tenantId key, per-tenant quotas, lag isolation, consumer pool isolation и noisy-neighbor monitoring, иначе один tenant создаст lag всем.',
+        'strangler_migration':'Это migration/strangler, поэтому нужна facade, parallel run, shadow compare, feature flags, rollback и reconciliation, а не одномоментная замена legacy.',
+        'existing_solution_audit':'Это аудит текущего решения: надо выделить что оставить, что исправить обязательно, blockers, phased remediation и regression tests для существующей схемы.',
+    }
+    return summaries.get(specialized_case) or case_summary(form, base_case_type)
+
+def risks_for_specialized_case(specialized_case, base_case_type=None, form=None):
+    m={
+        'saga_state_machine':[
+            ('partial success без модели состояний','часть шагов выполнена, но владелец восстановления непонятен','Process State DB, step status matrix, compensation_failed и manual recovery owner'),
+            ('компенсация не сработала','деньги/резервы/договоры остаются в подвешенном состоянии','compensation matrix, audit trail и ручной recovery queue'),
+        ],
+        'shared_topic_selective_consumer':[
+            ('неявная фильтрация общего потока','consumer молча отбрасывает нужные/лишние события','filtering rules, discard rate metric и per-message decision log'),
+            ('consumer lag и DLQ без владельца','общий topic создаёт задержки и повторную обработку','consumer lag alerting, DLQ/reprocess и idempotent sink'),
+        ],
+        'enrichment_before_kafka':[
+            ('устаревшее enrichment-значение','событие публикуется с неверной свежестью данных','dataAsOf, freshness SLA и enrichmentConsistency'),
+            ('REST enrichment недоступен','publisher зависает или теряет событие','FAILED/reprocess, retry budget и owner события'),
+        ],
+        'webhook_intake':[
+            ('поддельный или повторный callback','статус меняется чужим/дублирующим сообщением','signature validation, raw body preservation, Inbox и idempotent callback transition'),
+            ('callback не пришёл','процесс зависает без финального статуса','timeout ожидания, polling fallback и reconciliation'),
+        ],
+        'bff_api_composition':[
+            ('один источник валит весь экран','пользователь не видит даже доступные данные','per-source timeout, fallback и partial response'),
+            ('непонятная свежесть блоков','экран показывает устаревшие данные как финальные','freshness marker/dataAsOf, cache/read model и projection lag'),
+        ],
+        'dwh_pipeline':[
+            ('потеря полноты выгрузки','отчёт строится на неполных данных','watermark, staging quality checks и reconciliation'),
+            ('невозможен backfill','ошибку в DWH нельзя восстановить','lineage, replay/backfill и retention/archive policy'),
+        ],
+        'batch_file_exchange':[
+            ('файл обработан частично/повторно','данные загружаются дублями или теряются','manifest/checksum, batch_id и file registry'),
+            ('грязные записи попали в target','legacy-ошибка ломает целевую систему','validation, quarantine, ack/error file и reprocessing'),
+        ],
+        'contract_required_field_missing':[
+            ('breaking change проходит в runtime','consumer падает из-за required field/mapping','OpenAPI/AsyncAPI diff, required fields gate и consumer-driven contract tests'),
+            ('несовместимый rollout','часть consumers получает новую схему раньше готовности','compatibility policy, examples и migration plan'),
+        ],
+        'active_active_financial_write':[
+            ('split-brain финансовой записи','два региона одновременно меняют один баланс','single writer/ledger, conflict policy и reconciliation'),
+            ('double spend при retry','повтор команды меняет баланс второй раз','idempotency key, operation ledger и manual correction procedure'),
+        ],
+        'privacy_erasure_pipeline':[
+            ('удаление вопреки legal hold','регуляторный/юридический инцидент','legal hold decision matrix и retention exceptions'),
+            ('нет доказательства удаления','невозможно подтвердить исполнение запроса субъекта','per-system erasure receipt, audit log и reconciliation report'),
+        ],
+        'multi_tenant_noisy_neighbor':[
+            ('noisy neighbor','крупный tenant создаёт lag для остальных','tenantId key, per-tenant quotas и consumer pool isolation'),
+            ('общие метрики скрывают проблему tenant','SLA одного клиента нарушается незаметно','per-tenant lag metrics и alerts'),
+        ],
+        'strangler_migration':[
+            ('big-bang cutover','новый контур нельзя безопасно откатить','facade, feature flags и rollback plan'),
+            ('расхождения legacy/new незаметны','данные расходятся в parallel run','shadow compare и reconciliation rules'),
+        ],
+        'highload_stream_ingestion':[
+            ('hot partition/backpressure','поток копит lag и теряет SLA','partitioning/key strategy, backpressure и lag alerts'),
+            ('out-of-order replay ломает sink','повторная обработка меняет результат','out-of-order handling, replay procedure и idempotent sink'),
+        ],
+    }
+    return m.get(specialized_case) or risks_for_case(base_case_type or 'sync_rest')
+
+def merge_readiness(business_readiness, legacy_readiness=None, blockers=None):
+    b=dict(business_readiness or {})
+    l=dict(legacy_readiness or {})
+    blockers=list(blockers or [])
+    bs=int(b.get('score', 100) or 0)
+    ls=int(l.get('score', bs) or bs)
+    score=min(bs, ls) if blockers or l else bs
+    if blockers:
+        score=min(score, 60)
+    status='RED' if score < 40 else ('YELLOW' if score < 70 else 'GREEN')
+    b['score']=score; b['status']=status; b['blockers']=blockers or b.get('blockers', [])
+    return b
 
 def _case_text(form, keys):
     values=[]
@@ -1586,46 +1903,61 @@ def build_human_markdown(form, ctx, case_type, readiness, old_markdown=''):
     use_simple_gate = bool(readiness.get('_use_simple_readiness', True))
     preserved_score = readiness.get('score', simple.get('score', 0))
     if use_simple_gate:
+        previous_status = readiness.get('status')
+        previous_blockers = readiness.get('blockers') or []
         readiness.update(simple)
-        readiness['score'] = simple.get('score', preserved_score)
+        readiness['score'] = min(simple.get('score', preserved_score), preserved_score)
+        if previous_status:
+            readiness['status'] = previous_status
+        if previous_blockers:
+            readiness['blockers'] = previous_blockers
     if use_simple_gate and simple['score'] <= 40:
         missing='\n'.join(f'- {x}' for x in simple['missing'])
         return f"# Отчёт по интеграционному решению\n\nНедостаточно данных для архитектурного вывода.\n\nРешение заблокировано: недостаточно входных данных.\n\n### 0. Предпроектная проверка\nПока данных мало — можно сформировать только черновик. Для полного отчёта нужно заполнить ключевые вопросы.\n\n## Что нужно уточнить\n{missing}\n"
+    if (form or {}).get('_explicit_business_first') != 'yes' and old_markdown:
+        return old_markdown
+    specialized_case=(ctx or {}).get('specialized_case') or specialized_case_from_form(form, case_type)
     title=(form.get('project_name') or '').strip() or CASE_DEFAULT_TITLES.get(case_type, CASE_DEFAULT_TITLES['sync_rest'])
-    schema=custom_schema_from_form(form) or CASE_SCHEMAS.get(case_type, CASE_SCHEMAS['sync_rest'])
-    checklist=required_items_for_case(case_type)
+    custom_schema = custom_schema_from_form(form)
+    canonical_schema = build_canonical_schema_for_case(specialized_case, None, None, business_constraints_from_form(form))
+    schema = custom_schema or canonical_schema or CASE_SCHEMAS.get(case_type, CASE_SCHEMAS['sync_rest'])
+    checklist=case_specific_handoff(specialized_case, case_type)
     ordered_steps_text = ordered_business_process_text(form)
     ordered_steps = ordered_business_steps_from_form(form)
-    order_warnings = business_order_warnings_from_form(form)
+    order_warnings = list(dict.fromkeys(business_order_warnings_from_form(form) + validate_actor_action_pairs(form)))
     process=([f"{s['actorLabel']} {s['action'].lower()}{(' — ' + s['object']) if s.get('object') else ''}" for s in ordered_steps] or concrete_process(case_type))
-    risks=risks_for_case(case_type)
+    risks=risks_for_specialized_case(specialized_case, case_type, form)
     warning=(simple.get('warning')+'\n\n') if simple.get('warning') else ''
     business_goal=(form.get('business_goal') or '').strip()
     business_process = ordered_steps_text or business_goal or case_summary(form, case_type)
+    explanation = specialized_case_summary(specialized_case, case_type, form)
     md=[f'# Отчёт по интеграционному решению\n\n',
         '## 1. Бизнес-процесс\n',
-        f'{warning}{business_process}\n\n**Готовность требований:** {readiness.get("score", simple.get("score", 0))}%\n',
-        '\n## 2. Схема взаимодействия\n', f'**{schema}**\n\n', schema_blocks(case_type, schema)+'\n',
-        '\n## 3. Почему выбрана такая техническая схема\n', f'{case_summary(form, case_type)}\n',
+        f'{warning}{business_process}\n\n**Готовность требований:** {readiness.get("score", simple.get("score", 0))}% ({readiness.get("status", "GREEN")}).\n',
+        '\n## 2. Класс сложного кейса\n', case_class_narrative(specialized_case, case_type, form)+'\n',
+        '\n## 3. Схема взаимодействия\n', f'**{schema}**\n\n', schema_blocks(specialized_case, schema)+'\n',
+        '\n## 4. Почему выбрана такая техническая схема\n', f'{explanation}\n',
         (f'Порядок бизнес-шагов учтён: {business_process.replace(chr(10), " → ")}\n' if ordered_steps else ''),
         ''.join(f'Обратите внимание: {w}\n' for w in order_warnings),
         f'- Главный риск: {risks[0][0]} — {risks[0][1]}.\n',
         f'- Обязательно реализовать: {checklist[0] if checklist else "контракты и наблюдаемость"}.\n',
-        '\n## 4. Пошаговый процесс\n', numbered(process),
-        '\n## 5. Что обязательно реализовать\n', bullet(checklist),
-        '\n## 6. Риски и защита\n', '| Риск | Что будет | Как закрыть |\n|---|---|---|\n', ''.join(f'| {a} | {b} | {c} |\n' for a,b,c in risks), ''.join(f'| Риск порядка шагов | {w} | Уточнить порядок с бизнес-владельцем и добавить статус/проверку. |\n' for w in order_warnings),
-        '\n## 7. Что нужно уточнить\n', bullet((simple.get('missing') or ['нет критичных неизвестных']) + order_warnings),
-        '\n## 8. Что отдать разработке\n', bullet(['API contract', 'event contract', 'DB table', 'status model', 'retry rules', 'idempotency rules', 'monitoring', 'test cases']),
-        '\n## 9. Тест-кейсы\n', bullet(['happy path', 'timeout', 'retry', 'duplicate', 'unavailable dependency', 'manual recovery', 'status check']),
-        '\n## 10. ADR-черновик\n', f'- Context: требуется {title}.\n- Decision: использовать {schema}.\n- Alternatives: оставить синхронную цепочку, вынести обработку в отдельный worker, использовать adapter/orchestrator, использовать событийный поток там, где это оправдано.\n- Consequences: нужны явные контракты, правила повторов, владельцы ошибок и мониторинг.\n',
-        '\n## 11. Технические детали\n', '<details class="expert-details">\n<summary>Показать технические детали</summary>\n\n', bullet(technical_details_for_case(case_type)), '\n</details>\n',
-        '\n## 12. Приложение\n', 'Сюда перенесены raw matrices, SLA, observability, rollout, capacity и дополнительные таблицы из старого технического отчёта.\n']
+        '\n## 5. Пошаговый процесс\n', numbered(process),
+        '\n## 6. Что обязательно реализовать\n', bullet(checklist),
+        '\n## 7. Главные риски\n', '| Риск | Что будет | Как закрыть |\n|---|---|---|\n', ''.join(f'| {a} | {b} | {c} |\n' for a,b,c in risks), ''.join(f'| Риск бизнес-шага | {w} | Уточнить порядок/владельца с бизнес-владельцем и добавить статус/проверку. |\n' for w in order_warnings),
+        '\n## 8. Ограничения и компромиссы\n', bullet((_as_list(form.get('forbidden_channels', [])) + business_constraints_from_form(form)) or ['нет явных ограничений']),
+        '\n## 9. Что отдать разработке\n', bullet(checklist),
+        '\n## 10. Что нужно уточнить\n', bullet((simple.get('missing') or ['нет критичных неизвестных']) + order_warnings),
+        '\n## 11. Тест-кейсы\n', bullet(case_specific_handoff(specialized_case, case_type)[-4:] + ['happy path', 'timeout', 'duplicate/retry', 'manual recovery']),
+        '\n## 12. ADR\n', f'- Context: требуется {title}.\n- Decision: использовать {schema}.\n- Alternatives: generic {case_type}, синхронная цепочка, adapter/orchestrator, событийный поток там, где это оправдано.\n- Consequences: нужны case-specific контракты, правила повторов, владельцы ошибок, мониторинг и тесты.\n',
+        '\n<details class="expert-details">\n<summary>Показать технические детали</summary>\n\n', bullet(technical_details_for_case(case_type)), '\n</details>\n']
     if case_type == 'enrichment_kafka': md.append(enrichment_options_md())
     md.append(kafka_filtering_note(form))
     md.append(saga_compensation_note(form, case_type))
-    if old_markdown and (str(form.get('report_detail','')) == 'expert' or (form.get('project_name') or '').strip() or (form.get('quick_description') or '').strip() or (form.get('systems_matrix') or '').strip() or (form.get('process_graph_json') or '').strip()):
-        md.append('\n<details class="expert-details">\n<summary>Показать техническое приложение</summary>\n\n')
-        md.append(old_markdown)
+    if old_markdown and str(form.get('report_detail','')) == 'expert':
+        cleaned=re.sub(r'Решение заблокировано[^\n]*\n?', '', old_markdown)
+        cleaned=re.sub(r'Готовность[^\n]*0%[^\n]*\n?', '', cleaned)
+        md.append('\n<details class="expert-details">\n<summary>Диагностическое приложение (не основной вывод)</summary>\n\n')
+        md.append(cleaned)
         md.append('\n</details>\n')
     return ''.join(md)
 
@@ -1655,9 +1987,13 @@ class Engine:
     def generate(self, form):
         # Robust API entry: merge caller data with neutral UI defaults.
         # This protects CLI/tests/external callers from KeyError and prevents hidden demo data.
+        _original_form = form or {}
+        _explicit_business_first = (any(k in _original_form for k in ['business_case','business_process_json','business_actors_json','business_steps_json','business_constraints_json']) or _original_form.get('ux_mode') == 'business_first_constructor' or (not _original_form.get('ux_mode') and _original_form.get('simple_situation') and _original_form.get('process_graph_json')))
         base = defaults()
-        base.update(form or {})
+        base.update(_original_form)
         form = normalize_form(base)
+        if _explicit_business_first:
+            form['_explicit_business_first'] = 'yes'
         form.setdefault('preset_name','')
         if form.get('task_type') == 'audit_existing_solution':
             audit_res = SolutionAuditor().audit(form)
@@ -1732,9 +2068,13 @@ class Engine:
             md += self.specialized_cases_markdown(specialized)
         md = explain_english_terms_ru_text(md)
         case_type = detect_case_type(form, ctx, {'markdown': md})
+        specialized_case = specialized_case_from_form(form, case_type)
         ctx['case_type'] = case_type
+        ctx['specialized_case'] = specialized_case
         custom_case_schema = custom_schema_from_form(form)
-        case_checklist = required_items_for_case(case_type)
+        canonical_case_schema = build_canonical_schema_for_case(specialized_case or case_type)
+        selected_case_schema = custom_case_schema or canonical_case_schema or CASE_SCHEMAS.get(case_type, CASE_SCHEMAS['sync_rest'])
+        case_checklist = case_specific_handoff(specialized_case, case_type)
         _simple_ready = simple_readiness(form, ctx)
         _substantial_model = any(str(form.get(k, '')).strip() for k in ['systems_matrix','process_steps','fields','target_integration_matrix','current_solution_description','current_systems_matrix','current_process_steps'])
         _explicit_simple = any(str(form.get(k, '')).strip() for k in ['simple_situation','simple_goal','simple_q_systems','simple_q_immediate','simple_q_payload','simple_q_risk','simple_q_error','simple_q_status','quick_description'])
@@ -1745,8 +2085,9 @@ class Engine:
             readiness.update(_simple_ready)
             readiness['score'] = _simple_ready.get('score', _engine_score)
             readiness['_use_simple_readiness'] = True
+        readiness = merge_readiness(readiness, None, [a.get('title') for a in anti if a.get('severity') == 'critical'])
         md = build_human_markdown(form, ctx, case_type, readiness, md)
-        return {'form':form,'ctx':ctx,'traits':traits,'patterns':patterns,'case_classes':case_classes,'case_type':case_type,'case_schema':custom_case_schema or CASE_SCHEMAS.get(case_type),'case_checklist':case_checklist,'production_gate':production_gate,'wizard_production_gate':form.get('wizard_production_gate'),'structured_result':structured,'variants':variants,'recommended':recommended,'anti_patterns':anti,'db':db,'contracts':contracts,'scenarios':scenarios,'diagrams':diagrams,'lifecycle':lifecycle,'readiness':readiness,'composite_architecture':composite,'advanced':advanced,'specialized_cases':specialized,'markdown':md}
+        return {'form':form,'ctx':ctx,'traits':traits,'patterns':patterns,'case_classes':case_classes,'specialized_case':specialized_case,'case_type':case_type,'case_schema':selected_case_schema,'case_checklist':case_checklist,'production_gate':production_gate,'wizard_production_gate':form.get('wizard_production_gate'),'structured_result':structured,'variants':variants,'recommended':recommended,'anti_patterns':anti,'db':db,'contracts':contracts,'scenarios':scenarios,'diagrams':diagrams,'lifecycle':lifecycle,'readiness':readiness,'composite_architecture':composite,'advanced':advanced,'specialized_cases':specialized,'markdown':md}
 
     def specialized_case_pack(self,f,c,t,recommended,patterns,anti,db,contracts,scenarios,lifecycle):
         """Усиленный слой распознавания сложных интеграционных ситуаций.
@@ -4210,6 +4551,26 @@ def form_page(vals=None):
   <input type='hidden' name='business_result_type' id='businessResultTypeHidden' value='Создана заявка'>
   <input type='hidden' name='business_constraints_json' id='businessConstraintsJson' value='[]'>
   <input type='hidden' name='business_criticality' id='businessCriticalityHidden' value='Потерять данные'>
+  <input type='hidden' name='business_situations' id='businessSituationsHidden' value=''>
+  <input type='hidden' name='operation_kind' id='operationKindHidden' value=''>
+  <input type='hidden' name='result_model' id='resultModelHidden' value=''>
+  <input type='hidden' name='delivery' id='deliveryHidden' value=''>
+  <input type='hidden' name='load_profile' id='loadProfileHidden' value=''>
+  <input type='hidden' name='sensitivity' id='sensitivityHidden' value=''>
+  <input type='hidden' name='money_impact' id='moneyImpactHidden' value=''>
+  <input type='hidden' name='regulatory_impact' id='regulatoryImpactHidden' value=''>
+  <input type='hidden' name='source_change_policy' id='sourceChangePolicyHidden' value=''>
+  <input type='hidden' name='allowed_channels' id='allowedChannelsHidden' value=''>
+  <input type='hidden' name='forbidden_channels' id='forbiddenChannelsHidden' value=''>
+  <input type='hidden' name='orchestration' id='orchestrationHidden' value=''>
+  <input type='hidden' name='step_count' id='stepCountHidden' value=''>
+  <input type='hidden' name='chain_depth' id='chainDepthHidden' value=''>
+  <input type='hidden' name='partial_response_ok' id='partialResponseOkHidden' value=''>
+  <input type='hidden' name='replay' id='replayHidden' value=''>
+  <input type='hidden' name='retention' id='retentionHidden' value=''>
+  <input type='hidden' name='current_controls' id='currentControlsHidden' value=''>
+  <input type='hidden' name='kafka_topology' id='kafkaTopologyHidden' value=''>
+  <input type='hidden' name='consistency' id='consistencyHidden' value=''>
   <input type='hidden' name='auto_generated_technical_chain_json' id='autoGeneratedTechnicalChainJson' value=''>
 
   <div class='mode-header card no-text-header'>
@@ -4311,6 +4672,16 @@ def form_page(vals=None):
       <label class='chip'><input type='checkbox' name='constraint_flags' value='many_consumers'> Есть несколько получателей</label>
       <label class='chip'><input type='checkbox' name='constraint_flags' value='compensation'> Нужна компенсация / откат</label>
       <label class='chip'><input type='checkbox' name='constraint_flags' value='unstable_external'> Внешний провайдер нестабилен</label>
+      <div class='chip-group-title'>Дополнительные признаки сложного кейса</div>
+      <label class='chip'><input type='checkbox' name='constraint_flags' value='contract_change'> Контракт меняется / есть обязательные поля</label>
+      <label class='chip'><input type='checkbox' name='constraint_flags' value='shared_topic'> Один поток читают разные потребители</label>
+      <label class='chip'><input type='checkbox' name='constraint_flags' value='many_sources'> Несколько источников для одного экрана</label>
+      <label class='chip'><input type='checkbox' name='constraint_flags' value='callback_webhook'> Callback/webhook от внешней системы</label>
+      <label class='chip'><input type='checkbox' name='constraint_flags' value='exactly_once'> Нужно почти ровно один раз</label>
+      <label class='chip'><input type='checkbox' name='constraint_flags' value='privacy_erasure'> Удаление/исправление ПДн</label>
+      <label class='chip'><input type='checkbox' name='constraint_flags' value='multi_tenant'> Много клиентов/тенантов</label>
+      <label class='chip'><input type='checkbox' name='constraint_flags' value='active_active'> Active-active / несколько регионов</label>
+      <label class='chip'><input type='checkbox' name='constraint_flags' value='migration'> Миграция / замена legacy</label>
     </div></details>
   </section>
 
@@ -4352,7 +4723,13 @@ function validateBusinessStepOrder(){normalizeBusinessSteps();const warnings=[];
 function warningHtml(w){return w&&w.length?'<div class="warning-list"><b>Риски порядка шагов</b><ul>'+w.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>':''}
 function techNodeForStep(s,i){const t=(String(s.action)+' '+String(s.actorLabel||s.actor)).toLowerCase();if(t.includes('клиент')||t.includes('пользователь')||t.includes('открывает экран')||t.includes('создаёт'))return 'Client/UI';if(t.includes('проверяет')||t.includes('валида'))return 'Validation / Check Step';if(t.includes('внеш')||t.includes('ответ позже')||t.includes('обрабатывает запрос'))return 'External Service / Worker';if(t.includes('статус')||t.includes('фиксирует'))return 'Status DB';if(t.includes('отчёт'))return 'DWH / Reporting';if(t.includes('файл')||t.includes('старая'))return i===0?'Legacy System':'File Validation';if(t.includes('несколько')||t.includes('получател'))return 'Event Stream / Consumers';if(t.includes('дополняет')||t.includes('обогащ'))return 'Enrichment Step';return i===0?'Service API':'Service Step'}
 function businessTechnicalSchema(defaultSchema){normalizeBusinessSteps();if(!businessSteps.length)return defaultSchema;let nodes=[];businessSteps.forEach((s,i)=>{const n=techNodeForStep(s,i);if(!nodes.length||nodes[nodes.length-1]!==n)nodes.push(n)});if(!nodes.includes('Service API'))nodes.splice(Math.min(1,nodes.length),0,'Service API');return nodes.join(' → ')}
-function buildTechnicalChainFromBusiness(){normalizeBusinessSteps();let c=BUSINESS_TO_CASE[businessCase]||current;const timing=selected('businessTimingSelect');if(businessCase==='external_check' && timing==='Сразу на экране')c='sync_rest';if(businessCase==='external_check' && timing==='Внешняя система ответит позже')c='callback';if(businessCase==='long_process')c='async_worker';if(businessSteps.some(s=>String(s.action).toLowerCase().includes('получает ответ позже'))||timing==='Нужно принять сейчас, результат получить позже')c=(businessCase==='external_check')?'callback':'async_worker';if(businessSteps.some(s=>String(s.actorLabel||s.actor).toLowerCase().includes('несколько получателей')))c='event_kafka';if(businessSteps.some(s=>String(s.action).toLowerCase().includes('дополняет')))c='enrichment_kafka';if(businessSteps.some(s=>String(s.action).toLowerCase().includes('отчёт')))c='dwh';if(businessSteps.some(s=>String(s.object).toLowerCase().includes('файл')))c='legacy_file';current=c;const d=CASES[c];let schema=d.schema;if(businessCase==='long_process')schema='Initiator → Process Coordinator → Process State DB → Step Services → Compensation / Manual Recovery';if(businessCase==='data_enrichment')schema='Source Process → Enrichment Step → Target Step';schema=businessTechnicalSchema(schema);const warnings=validateBusinessStepOrder();const processPayload={schema:businessSchema(),case:businessCase,actors:businessActors,steps:businessSteps,warnings};setHidden('businessCaseHidden',businessCase);setHidden('businessProcessJson',JSON.stringify(processPayload));setHidden('businessActorsJson',JSON.stringify(businessActors));setHidden('businessStepsJson',JSON.stringify(businessSteps));setHidden('businessObjectHidden',selected('businessObjectSelect'));setHidden('businessResultTimingHidden',timing);setHidden('businessResultTypeHidden',selected('businessResultSelect'));setHidden('businessConstraintsJson',JSON.stringify(constraints()));setHidden('businessCriticalityHidden',(document.getElementById('simpleQRiskHidden')||{}).value||'Потерять данные');setHidden('businessGoalHidden',businessGoalText());setHidden('simpleSituationHidden',c);setHidden('taskTypeHidden',d.task);setHidden('systemsMatrixHidden',matrixSystems(schema));setHidden('processStepsHidden',matrixSteps(schema));setHidden('targetIntegrationHidden',matrixTarget(schema));setHidden('errorMatrixHidden','timeout | dependency | blocking | yes | retry/manual recovery | TBD\\nduplicate | boundary | non_blocking | no | idempotency | TBD\\norder_warning | business_process | non_blocking | no | '+warnings.join('; ')+' | business owner');setHidden('processGraphJson',JSON.stringify({case_type:c,business_case:businessCase,business_schema:businessSchema(),schema,nodes:schema.split('→').map((x,i)=>({id:'N'+(i+1),title:x.trim()})),business_steps:businessSteps,constraints:constraints(),warnings}));setHidden('autoGeneratedTechnicalChainJson',JSON.stringify({case_type:c,schema,business_schema:businessSchema(),steps:businessSteps,constraints:constraints(),warnings}));return {case_type:c,schema,business_schema:businessSchema(),warnings}}
+function addUnique(arr,v){if(v&&!arr.includes(v))arr.push(v)}
+function validateActorActionPairs(){normalizeBusinessSteps();const warnings=[];businessSteps.forEach(s=>{const actor=String(s.actorLabel||s.actor||'').toLowerCase();const action=String(s.action||'').toLowerCase();if(actor.includes('клиент')||actor.includes('пользователь')){if(action.includes('принимает заявку'))warnings.push('Клиент обычно создаёт/отправляет заявку, а принимает её внутренняя система.');if(action.includes('проверяет данные'))warnings.push('Проверку обычно выполняет система или сотрудник.');if(action.includes('обновляет статус'))warnings.push('Статус процесса обычно обновляет система.')}if(actor.includes('внешняя система')&&action.includes('принимает заявку'))warnings.push('Если внешняя система принимает заявку, уточните, кто владелец процесса и статуса.')});return Array.from(new Set(warnings))}
+function buildScenarioFacetsFromBusiness(){normalizeBusinessSteps();const flags=constraints();const situations=[];const facets={business_situations:situations,allowed_channels:[],forbidden_channels:[],current_controls:[]};const timing=selected('businessTimingSelect');const obj=selected('businessObjectSelect');const risk=(document.getElementById('simpleQRiskHidden')||{}).value||'';const txt=(businessSchema()+' '+obj+' '+timing).toLowerCase();const has=f=>flags.includes(f);const add=(...xs)=>xs.forEach(x=>addUnique(situations,x));if(businessCase==='application_creation'){add('application_or_order_creation');facets.operation_kind='command_create_update';if(timing.includes('позже')){add('multi_step_business_process','async_heavy_processing','long_running_process');facets.result_model='tracking'}}if(businessCase==='data_change_distribution'||has('many_consumers')){add('data_synchronization','one_source_many_consumers');facets.operation_kind='event_publish';facets.result_model='notification';facets.allowed_channels=['kafka','queue'];if(has('no_new_topic')||has('shared_topic')){add('shared_topic_selective_consumer');facets.forbidden_channels.push('new_topic_forbidden');facets.kafka_topology='single_topic_only'}if(has('highload'))add('highload_write_stream','peak_load_process')}if(businessCase==='data_enrichment'||txt.includes('дополняет')||txt.includes('справоч')){add('data_enrichment','event_enrichment_before_publish');facets.operation_kind='event_enrichment';if(has('source_locked')){add('source_lacks_kafka');facets.source_change_policy='minimal_table_only'}}if((businessCase==='external_check'&&timing.includes('позже'))||txt.includes('получает ответ позже')||has('callback_webhook')){add('external_api_dependency','webhook_callback');facets.result_model='callback';facets.task_type='external_partner';if(has('unstable_external'))add('unstable_external_provider')}if(businessCase==='status_screen'||has('many_sources')||txt.includes('собирает статус')){add('client_status_screen','multi_source_aggregation','api_composition','read_model');facets.operation_kind='bff_composition';facets.partial_response_ok='yes';if(has('highload'))add('highload_read')}if(businessCase==='reporting'||txt.includes('отчёт')||txt.includes('отчет')){add('dwh_reporting','batch_processing');facets.operation_kind='dwh_offload';facets.task_type='dwh_analytics';facets.replay='yes';facets.retention='required'}if(businessCase==='legacy_file'||txt.includes('файл')||has('migration')){add('legacy_integration','batch_processing');facets.operation_kind='batch_file_exchange'}if(businessCase==='audit'){add('existing_solution_audit');facets.task_type='audit_existing_solution'}if(businessCase==='long_process'||has('compensation')||txt.includes('компенс')||txt.includes('откат')){add('long_running_process','distributed_transaction_saga','multi_step_business_process','manual_recovery_required');facets.orchestration='orchestrator';facets.result_model='tracking'}if(has('contract_change')){add('contract_breaking_change','contract_required_field_missing');facets.task_type='contract_change'}if(has('money')){add('financial_operation');facets.money_impact='yes'}if(has('regulatory')){add('regulatory_process');facets.regulatory_impact='yes'}if(has('pii')){add('personal_data_exchange');facets.sensitivity='personal'}if(has('active_active')&&has('money')&&has('highload')){add('active_active_financial_write','financial_operation','exactly_once_required');facets.delivery='business_exactly_once';facets.consistency='strong_on_write'}if(has('privacy_erasure'))add('privacy_erasure','personal_data_exchange','regulatory_process');if(has('multi_tenant'))add('multi_tenant_noisy_neighbor','shared_topic_selective_consumer');if(has('migration')){add('migration_or_strangler','legacy_integration');facets.task_type='replace_legacy'}if(has('highload')&&(facets.operation_kind==='event_publish'||txt.includes('событ'))){add('highload_stream_ingestion','highload_write_stream');facets.load_profile='highload'}if(has('replay'))facets.replay='yes';if(has('exactly_once')||risk.includes('Потерять данные')||risk.includes('Получить дубль'))facets.delivery='business_exactly_once';facets.step_count=String(businessSteps.length||0);facets.chain_depth=businessSteps.length>=4?'multi_level':'single_level';return facets}
+function specializedCaseFromFacets(base,facets){const s=facets.business_situations||[];if(s.includes('active_active_financial_write'))return 'active_active_financial_write';if(s.includes('privacy_erasure'))return 'privacy_erasure_pipeline';if(s.includes('multi_tenant_noisy_neighbor'))return 'multi_tenant_noisy_neighbor';if(s.includes('migration_or_strangler'))return 'strangler_migration';if(s.includes('contract_required_field_missing'))return 'contract_required_field_missing';if(s.includes('shared_topic_selective_consumer'))return 'shared_topic_selective_consumer';if(s.includes('event_enrichment_before_publish'))return 'enrichment_before_kafka';if(s.includes('webhook_callback'))return 'webhook_intake';if(s.includes('distributed_transaction_saga'))return 'saga_state_machine';if(s.includes('client_status_screen')||s.includes('multi_source_aggregation'))return 'bff_api_composition';if(s.includes('highload_stream_ingestion'))return 'highload_stream_ingestion';if(s.includes('dwh_reporting'))return 'dwh_pipeline';if(s.includes('legacy_integration')&&s.includes('batch_processing'))return 'batch_file_exchange';if(s.includes('existing_solution_audit'))return 'existing_solution_audit';return base}
+function buildCanonicalSchemaForCase(caseType){const schemas={async_worker:'Client/UI → Application API → integration_task DB → Worker → Target Service → Status DB',saga_state_machine:'Initiator → Process Coordinator → Process State DB → Step Services → Compensation / Manual Recovery',event_kafka:'Source Service → Business DB → Outbox → Publisher → Event Stream → Consumer → Inbox → Target Service',shared_topic_selective_consumer:'Shared Event Stream → Selective Consumer → Filter → Inbox/Dedup Sink → Target Service → DLQ/Reprocess',enrichment_before_kafka:'Source Service → Source-owned Outbox → Integration Publisher → REST Enrichment API → Event Stream → Consumer',webhook_intake:'External/Internal Request → External Provider → Callback API → Inbox → Async Worker → Status DB',bff_api_composition:'Client/UI → BFF/API Composition → Source Services → Cache/Read Model → Partial Response',dwh_pipeline:'Source System → CDC/Export → Staging → Data Quality → DWH/Reporting → Reconciliation',batch_file_exchange:'Legacy System → File Export → Manifest/Checksum → Staging → Validation → Quarantine/Target',contract_required_field_missing:'Contract Source → Compatibility Check → Consumer Contract Tests → Runtime Validation → Rollout',active_active_financial_write:'Region API → Operation State Machine → Single Writer/Ledger → Replication/Read Model → Reconciliation',privacy_erasure_pipeline:'Erasure Request API → Policy/Legal Hold Check → Per-System Erasure Tasks → Receipts → Audit/Reconciliation',highload_stream_ingestion:'Producers → Event Stream Partitions → Stream Processing → Idempotent Sink → Alerting/Consumers → DWH Downstream',multi_tenant_noisy_neighbor:'Shared Stream → Tenant-aware Consumer Pool → Per-tenant Quotas → Isolated Sink/Inbox → Lag Metrics',strangler_migration:'Client/System → Facade → New Service + Legacy → Shadow Compare → Feature Flag Cutover → Rollback/Reconciliation',existing_solution_audit:'Current Solution → Risk Review → Keep/Fix Decisions → Phased Remediation → Regression Tests'};return schemas[caseType]||''}
+function syncScenarioFacetHidden(f){setHidden('businessSituationsHidden',(f.business_situations||[]).join(','));setHidden('operationKindHidden',f.operation_kind||'');setHidden('resultModelHidden',f.result_model||'');setHidden('deliveryHidden',f.delivery||'');setHidden('loadProfileHidden',f.load_profile||'');setHidden('sensitivityHidden',f.sensitivity||'');setHidden('moneyImpactHidden',f.money_impact||'');setHidden('regulatoryImpactHidden',f.regulatory_impact||'');setHidden('sourceChangePolicyHidden',f.source_change_policy||'');setHidden('allowedChannelsHidden',(f.allowed_channels||[]).join(','));setHidden('forbiddenChannelsHidden',(f.forbidden_channels||[]).join(','));setHidden('orchestrationHidden',f.orchestration||'');setHidden('stepCountHidden',f.step_count||'');setHidden('chainDepthHidden',f.chain_depth||'');setHidden('partialResponseOkHidden',f.partial_response_ok||'');setHidden('replayHidden',f.replay||'');setHidden('retentionHidden',f.retention||'');setHidden('currentControlsHidden',(f.current_controls||[]).join(','));setHidden('kafkaTopologyHidden',f.kafka_topology||'');setHidden('consistencyHidden',f.consistency||'')}
+function buildTechnicalChainFromBusiness(){normalizeBusinessSteps();let c=BUSINESS_TO_CASE[businessCase]||current;const timing=selected('businessTimingSelect');if(businessCase==='external_check' && timing==='Сразу на экране')c='sync_rest';if(businessCase==='external_check' && timing==='Внешняя система ответит позже')c='callback';if(businessCase==='long_process')c='async_worker';if(businessSteps.some(s=>String(s.action).toLowerCase().includes('получает ответ позже'))||timing==='Нужно принять сейчас, результат получить позже')c=(businessCase==='external_check')?'callback':'async_worker';if(businessSteps.some(s=>String(s.actorLabel||s.actor).toLowerCase().includes('несколько получателей')))c='event_kafka';if(businessSteps.some(s=>String(s.action).toLowerCase().includes('дополняет')))c='enrichment_kafka';if(businessSteps.some(s=>String(s.action).toLowerCase().includes('отчёт')))c='dwh';if(businessSteps.some(s=>String(s.object).toLowerCase().includes('файл')))c='legacy_file';const facets=buildScenarioFacetsFromBusiness();syncScenarioFacetHidden(facets);const specialized=specializedCaseFromFacets(c,facets);current=c;const d=CASES[c]||CASES.async_worker;const specializedIsReal=!!(specialized&&specialized!==c);const canonical=buildCanonicalSchemaForCase(specialized);let schema=canonical||d.schema;if(!specializedIsReal){schema=businessTechnicalSchema(schema);}const warnings=Array.from(new Set(validateBusinessStepOrder().concat(validateActorActionPairs())));const processPayload={schema:businessSchema(),case:businessCase,actors:businessActors,steps:businessSteps,warnings,scenario_facets:facets,specialized_case:specialized};setHidden('businessCaseHidden',businessCase);setHidden('businessProcessJson',JSON.stringify(processPayload));setHidden('businessActorsJson',JSON.stringify(businessActors));setHidden('businessStepsJson',JSON.stringify(businessSteps));setHidden('businessObjectHidden',selected('businessObjectSelect'));setHidden('businessResultTimingHidden',timing);setHidden('businessResultTypeHidden',selected('businessResultSelect'));setHidden('businessConstraintsJson',JSON.stringify(constraints()));setHidden('businessCriticalityHidden',(document.getElementById('simpleQRiskHidden')||{}).value||'Потерять данные');setHidden('businessGoalHidden',businessGoalText());setHidden('simpleSituationHidden',c);setHidden('taskTypeHidden',facets.task_type||d.task);setHidden('systemsMatrixHidden',matrixSystems(schema));setHidden('processStepsHidden',matrixSteps(schema));setHidden('targetIntegrationHidden',matrixTarget(schema));setHidden('errorMatrixHidden','timeout | dependency | blocking | yes | retry/manual recovery | TBD\\nduplicate | boundary | non_blocking | no | idempotency | TBD\\norder_warning | business_process | non_blocking | no | '+warnings.join('; ')+' | business owner');setHidden('processGraphJson',JSON.stringify({case_type:c,specialized_case:specialized,business_case:businessCase,business_schema:businessSchema(),schema,nodes:schema.split('→').map((x,i)=>({id:'N'+(i+1),title:x.trim()})),business_steps:businessSteps,constraints:constraints(),scenario_facets:facets,warnings}));setHidden('autoGeneratedTechnicalChainJson',JSON.stringify({case_type:c,specialized_case:specialized,schema,business_schema:businessSchema(),steps:businessSteps,constraints:constraints(),scenario_facets:facets,warnings}));return {case_type:c,specialized_case:specialized,schema,business_schema:businessSchema(),warnings}}
 function renderBusinessProcess(){const built=buildTechnicalChainFromBusiness();const w=warningHtml(built.warnings);document.getElementById('businessDiagram').innerHTML='<h4>Бизнес-процесс</h4>'+businessFlowHtml()+w}
 function renderBusinessPreview(){const built=buildTechnicalChainFromBusiness();document.getElementById('autoTechnicalPreview').innerHTML='<h4>Автоматически построенная техническая схема</h4>'+diagramHtml(built.schema)+warningHtml(built.warnings)+'<p class="small">Технический конструктор ниже можно открыть и поправить, но это не требуется для обычного заполнения.</p>'}
 function moveBusinessStep(index,direction){const next=index+direction;if(next<0||next>=businessSteps.length)return;const tmp=businessSteps[index];businessSteps[index]=businessSteps[next];businessSteps[next]=tmp;normalizeBusinessSteps();syncBusinessProcess();buildTechnicalChainFromBusiness();renderBusinessProcess();renderBusinessPreview();renderAll()}
@@ -4720,9 +5097,13 @@ def parse_post(body):
             else:
                 f[qid]=raw.get(qid,[default])[0]
     f['preset_name']=raw.get('preset_name',[''])[0]
-    for extra_key in ['delivery_guarantee','audit_required','rollback_plan','manual_recovery_owner','lineage_required','data_quality_required','report_detail','ux_mode','project_name','business_goal','task_type','systems_matrix','process_steps','target_integration_matrix','contract_matrix','error_matrix','process_graph_json','process_graph_meta','custom_chain_json','business_case','business_process_json','business_actors_json','business_steps_json','business_object','business_result_timing','business_result_type','business_constraints_json','business_criticality','auto_generated_technical_chain_json','simple_situation','simple_goal','simple_q_systems','simple_q_immediate','simple_q_payload','simple_q_risk','simple_q_external','simple_q_source_change','simple_q_load','simple_q_critical','simple_q_error','simple_q_status']:
+    for extra_key in ['delivery_guarantee','audit_required','rollback_plan','manual_recovery_owner','lineage_required','data_quality_required','report_detail','ux_mode','project_name','business_goal','task_type','systems_matrix','process_steps','target_integration_matrix','contract_matrix','error_matrix','process_graph_json','process_graph_meta','custom_chain_json','business_case','business_process_json','business_actors_json','business_steps_json','business_object','business_result_timing','business_result_type','business_constraints_json','business_criticality','auto_generated_technical_chain_json','simple_situation','simple_goal','simple_q_systems','simple_q_immediate','simple_q_payload','simple_q_risk','simple_q_external','simple_q_source_change','simple_q_load','simple_q_critical','simple_q_error','simple_q_status','operation_kind','result_model','delivery','load_profile','sensitivity','money_impact','regulatory_impact','source_change_policy','allowed_channels','forbidden_channels','orchestration','step_count','chain_depth','partial_response_ok','replay','retention','current_controls','kafka_topology','consistency']:
         if extra_key in raw:
             f[extra_key]=raw.get(extra_key,[''])[0]
+    if 'constraint_flags' in raw:
+        f['constraint_flags']=raw.get('constraint_flags', [])
+    if 'business_situations' in raw:
+        f['business_situations']=raw.get('business_situations', [])
     return apply_progressive_ui_mapping(raw, f)
 
 def yaml_scalar(v):
@@ -5252,33 +5633,17 @@ def storage_items_from_form(form):
 
 def result_page(res,rid,fname,bundle_name=None,json_name=None):
     case_type = res.get('case_type') or (res.get('ctx') or {}).get('case_type') or 'sync_rest'
-    schema = res.get('case_schema') or custom_schema_from_form(res.get('form') or {}) or CASE_SCHEMAS.get(case_type, CASE_SCHEMAS['sync_rest'])
-    checklist = res.get('case_checklist') or required_items_for_case(case_type) or []
+    specialized_case = res.get('specialized_case') or (res.get('ctx') or {}).get('specialized_case') or specialized_case_from_form(res.get('form') or {}, case_type)
+    schema = res.get('case_schema') or custom_schema_from_form(res.get('form') or {}) or build_canonical_schema_for_case(specialized_case) or CASE_SCHEMAS.get(case_type, CASE_SCHEMAS['sync_rest'])
+    checklist = res.get('case_checklist') or case_specific_handoff(specialized_case, case_type) or []
     storage_extras = storage_items_from_form(res.get('form') or {})
     checklist = list(checklist) + [x for x in storage_extras if x not in checklist]
-    risks = risks_for_case(case_type)
+    risks = risks_for_specialized_case(specialized_case, case_type, res.get('form') or {})
     risk_items = [f'{a} → {c}' for a, b, c in risks[:5]]
     process = concrete_process(case_type)
     readiness = res.get('readiness') or {'score': 0}
     score = readiness.get('score', 0)
-    if case_type == 'async_worker':
-        handoff = ['API Service 1 → Service 2', 'таблица integration_task', 'статусная модель', 'правила worker/retry', 'контракт Service 2 → Service 3', 'тест-кейсы']
-    elif case_type == 'event_kafka':
-        handoff = ['event schema', 'outbox table', 'consumer inbox', 'DLQ/reprocess', 'partition key', 'schema compatibility']
-    elif case_type == 'enrichment_kafka':
-        handoff = ['варианты source/consumer/worker/adapter', 'правила свежести', 'retry/fallback', 'контракт обогащения', 'тесты недоступности enrichment']
-    elif case_type == 'callback':
-        handoff = ['external request contract', 'callback endpoint contract', 'status model', 'auth/signature validation', 'polling fallback', 'audit log']
-    elif case_type == 'dwh':
-        handoff = ['формат выгрузки', 'watermark', 'правила сверки', 'backfill procedure', 'data quality checks']
-    elif case_type == 'legacy_file':
-        handoff = ['формат файла', 'checksum', 'file registry', 'quarantine', 'reprocessing', 'manual recovery']
-    elif case_type == 'status_aggregation':
-        handoff = ['BFF contract', 'status model', 'timeout/fallback policy', 'cache/read model rules', 'freshness marker', 'per-source metrics']
-    elif case_type == 'audit':
-        handoff = ['risk register', 'список blockers', 'варианты исправления', 'тест-кейсы', 'ADR по изменениям']
-    else:
-        handoff = ['API-контракт', 'правила timeout/error mapping', 'contract tests', 'логирование/correlationId']
+    handoff = case_specific_handoff(specialized_case, case_type)
     def li(items):
         return ''.join(f'<li>{escape(str(x))}</li>' for x in items)
     readiness_label = 'Полный отчёт' if score >= 70 else ('Предварительный результат' if score >= 40 else 'Черновик')
@@ -5286,7 +5651,7 @@ def result_page(res,rid,fname,bundle_name=None,json_name=None):
     ordered_steps_text = ordered_business_process_text(form)
     order_warnings = business_order_warnings_from_form(form)
     business_process = ordered_steps_text or (form.get('business_goal') or '').strip() or case_summary(form, case_type)
-    summary = case_summary(form, case_type) + ((' Порядок бизнес-шагов учтён: ' + business_process.replace('\n', ' → ')) if ordered_steps_text else '')
+    summary = specialized_case_summary(specialized_case, case_type, form) + ((' Порядок бизнес-шагов учтён: ' + business_process.replace('\n', ' → ')) if ordered_steps_text else '')
     technical = technical_details_for_case(case_type)
     full_links = f'<a class="btn" href="/download?file={escape(fname)}">Скачать markdown</a>'
     if json_name:
@@ -5309,14 +5674,15 @@ def result_page(res,rid,fname,bundle_name=None,json_name=None):
       <p class="muted">Сначала показаны бизнес-процесс, схема, объяснение выбора, обязательные элементы, риски и handoff. Полный markdown скрыт ниже.</p>
       <div class="warnbox"><b>{escape(readiness_label)}</b> · готовность {escape(str(score))}%</div>
       <div class="simple-result"><h3>1. Бизнес-процесс</h3><p>{escape(business_process)}</p></div>
-      <div class="simple-result"><h3>2. Схема взаимодействия</h3>{interaction_diagram_html(schema)}</div>
-      <div class="simple-result"><h3>3. Почему выбрана такая техническая схема</h3><p>{escape(summary)}</p></div>
+      <div class="simple-result"><h3>2. Класс сложного кейса</h3><p>{escape(case_class_narrative(specialized_case, case_type, res.get('form') or {}))}</p></div>
+      <div class="simple-result"><h3>3. Схема взаимодействия</h3>{interaction_diagram_html(schema)}</div>
+      <div class="simple-result"><h3>4. Почему выбрана такая схема</h3><p>{escape(summary)}</p></div>
       <div class="simple-result-grid four-blocks">
-        <div class="simple-result"><h3>4. Что обязательно сделать</h3><ul class="todo-list">{li(checklist)}</ul></div>
-        <div class="simple-result"><h3>5. Главные риски</h3><ul class="todo-list">{li(risk_items + order_warnings)}</ul></div>
-        <div class="simple-result"><h3>6. Что отдать разработке</h3><ul class="todo-list">{li(handoff)}</ul></div>
+        <div class="simple-result"><h3>5. Что обязательно сделать</h3><ul class="todo-list">{li(checklist)}</ul></div>
+        <div class="simple-result"><h3>6. Главные риски</h3><ul class="todo-list">{li(risk_items + order_warnings)}</ul></div>
+        <div class="simple-result"><h3>7. Что отдать разработке</h3><ul class="todo-list">{li(handoff)}</ul></div>
       </div>
-      <h3>Пошаговый процесс</h3><div class="simple-result"><ol class="todo-list">{li(process)}</ol></div>
+      <h3>8. Пошаговый процесс</h3><div class="simple-result"><ol class="todo-list">{li(process)}</ol></div>
       <div class="report-actions">{full_links}<a class="btn secondary" href="/run?id={escape(rid)}">Открыть run</a><a class="btn secondary" href="/">Вернуться к конструктору</a></div>
     </div>
     <details class="full-report card"><summary>Открыть полный отчёт</summary><div class="result">{escape(res.get('markdown',''))}</div></details>
