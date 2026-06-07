@@ -131,8 +131,9 @@ def test_parse_post_keeps_business_first_fields():
 
 def test_open_technical_constructor_does_not_change_step():
     h = html()
-    handler_start = h.index("on('openTechnicalConstructor'")
+    handler_start = h.index("function openTechnicalConstructorAt")
     handler_end = h.index("on('approveAutoScheme'", handler_start)
     handler = h[handler_start:handler_end]
     assert "scrollIntoView" in handler
+    assert "openTechnicalConstructorAt('autoTechnicalConstructorHost')" in handler
     assert "go(1)" not in handler

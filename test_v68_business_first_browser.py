@@ -70,8 +70,9 @@ def test_business_first_constructor_in_real_chromium():
             page.locator('#constructorNext').click()
             page.locator("section.constructor-screen.is-active[data-constructor-screen='3']").wait_for()
             assert page.get_by_text('Система построила техническую схему').is_visible()
+            step_before = page.locator('section.constructor-screen.is-active').get_attribute('data-constructor-screen')
             page.locator('#openTechnicalConstructor').click()
-            page.locator("section.constructor-screen.is-active[data-constructor-screen='1']").wait_for()
+            assert page.locator('section.constructor-screen.is-active').get_attribute('data-constructor-screen') == step_before
             assert page.locator('#technicalConstructorDetails').evaluate('e => e.open')
             page.locator('#addParticipantBtn').click()
             page.locator('#addParticipantBtn').click()
