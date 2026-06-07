@@ -1,0 +1,47 @@
+name: Clear repository
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  clear-repository:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Remove all repository files
+        run: |
+          find . -mindepth 1 \
+            ! -path './.git' \
+            ! -path './.git/*' \
+            -exec rm -rf {} +
+
+      - name: Create placeholder README
+        run: |
+          cat > README.md <<'EOF'
+          # Repository cleared
+
+          This repository was cleared via GitHub Actions.
+          EOF
+
+      - name: Commit and push cleanup
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "Clear repository"
+          git push
