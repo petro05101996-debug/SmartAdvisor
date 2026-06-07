@@ -1,0 +1,70 @@
+name: Unpack archive into repo
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show files
+        run: |
+          pwd
+          ls -lah
+
+      - name: Install unzip
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip
+
+      - name: Unpack project archive
+        run: |
+          ZIP_FILE="integration_architect_pro_v5_0_9_predeploy_checked_ru.zip"
+
+          if [ ! -f "$ZIP_FILE" ]; then
+            echo "Archive not found: $ZIP_FILE"
+            echo "Files in repo:"
+            ls -lah
+            exit 1
+          fi
+
+          rm -rf unpacked_project
+          mkdir unpacked_project
+          unzip -q "$ZIP_FILE" -d unpacked_project
+
+          echo "Unpacked structure:"
+          find unpacked_project -maxdepth 3 -type f | head -100
+
+      - name: Move files to repository root
+        run: |
+          # В архиве проект лежит внутри ia_v48/
+          if [ -d "unpacked_project/ia_v48" ]; then
+            cp -R unpacked_project/ia_v48/. .
+          else
+            cp -R unpacked_project/. .
+          fi
+
+          rm -rf unpacked_project
+
+          echo "Final repo structure:"
+          ls -lah
+
+      - name: Remove archive from repo
+        run: |
+          rm -f integration_architect_pro_v5_0_9_predeploy_checked_ru.zip
+
+      - name: Commit unpacked files
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          git add .
+          git commit -m "Unpack Integration Architect project" || echo "Nothing to commit"
+          git push

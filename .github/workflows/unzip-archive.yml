@@ -19,27 +19,29 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y unzip
 
-      - name: Find ZIP archive
+      - name: Find ZIP archive in repository root
         id: find_zip
         run: |
           echo "Files in repository root:"
           ls -la
 
-          ZIP_COUNT=$(find . -maxdepth 1 -type f -name "*.zip" | wc -l | tr -d ' ')
+          ZIP_COUNT=$(find . -maxdepth 1 -type f -iname "*.zip" | wc -l | tr -d ' ')
 
           if [ "$ZIP_COUNT" = "0" ]; then
             echo "No ZIP archive found in repository root."
+            echo "Upload ZIP archive to repository root first."
             exit 1
           fi
 
           if [ "$ZIP_COUNT" != "1" ]; then
-            echo "More than one ZIP archive found. Leave only one ZIP in repository root."
-            find . -maxdepth 1 -type f -name "*.zip" -print
+            echo "More than one ZIP archive found in repository root."
+            echo "Leave only one ZIP archive in repository root."
+            find . -maxdepth 1 -type f -iname "*.zip" -print
             exit 1
           fi
 
-          ZIP_FILE=$(find . -maxdepth 1 -type f -name "*.zip" | head -n 1)
-          ZIP_FILE=${ZIP_FILE#./}
+          ZIP_FILE=$(find . -maxdepth 1 -type f -iname "*.zip" | head -n 1)
+          ZIP_FILE="${ZIP_FILE#./}"
 
           echo "Found archive: $ZIP_FILE"
           echo "zip_file=$ZIP_FILE" >> "$GITHUB_OUTPUT"
@@ -60,13 +62,18 @@ jobs:
         run: |
           shopt -s dotglob nullglob
 
-          # If ZIP contains one top-level folder, move its contents.
           TOP_LEVEL_COUNT=$(find _unzipped -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ')
 
-          if [ "$TOP_LEVEL_COUNT" = "1" ] && [ -d "$(find _unzipped -mindepth 1 -maxdepth 1 | head -n 1)" ]; then
-            ROOT_DIR="$(find _unzipped -mindepth 1 -maxdepth 1 | head -n 1)"
-            echo "Archive has single root folder: $ROOT_DIR"
-            cp -a "$ROOT_DIR"/. .
+          if [ "$TOP_LEVEL_COUNT" = "1" ]; then
+            ROOT_ITEM="$(find _unzipped -mindepth 1 -maxdepth 1 | head -n 1)"
+
+            if [ -d "$ROOT_ITEM" ]; then
+              echo "Archive has one root folder: $ROOT_ITEM"
+              cp -a "$ROOT_ITEM"/. .
+            else
+              echo "Archive has one root file. Copying directly."
+              cp -a _unzipped/. .
+            fi
           else
             echo "Archive content is directly inside ZIP"
             cp -a _unzipped/. .
