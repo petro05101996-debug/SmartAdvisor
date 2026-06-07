@@ -78,13 +78,15 @@ def test_business_first_report_starts_with_business_then_scheme_then_reason():
     res = app.Engine().generate(_form('async_worker', 'Client/UI → Service API → integration_task DB → Worker → Target Service → Status DB'))
     md = res['markdown']
     assert '## 1. Бизнес-процесс' in md
-    assert '## 2. Схема взаимодействия' in md
-    assert '## 3. Почему выбрана такая техническая схема' in md
+    assert '## 2. Класс сложного кейса' in md
+    assert '## 3. Схема взаимодействия' in md
+    assert '## 4. Почему выбрана такая техническая схема' in md
     assert 'integration_task DB' in md
     result = app.result_page(res, 'rid', 'report.md')
     assert '1. Бизнес-процесс' in result
-    assert '2. Схема взаимодействия' in result
-    assert '3. Почему выбрана такая техническая схема' in result
+    assert '2. Класс сложного кейса' in result
+    assert '3. Схема взаимодействия' in result
+    assert '4. Почему выбрана такая схема' in result
     assert 'Что обязательно сделать' in result
     assert 'Главные риски' in result
     assert 'Что отдать разработке' in result
