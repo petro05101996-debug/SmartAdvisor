@@ -79,25 +79,6 @@ jobs:
             cp -a _unzipped/. .
           fi
 
-      - name: Ensure Dockerfile exists
-        run: |
-          if [ ! -f Dockerfile ]; then
-            cat > Dockerfile <<'EOF'
-          FROM python:3.11-slim
-
-          WORKDIR /app
-
-          COPY . .
-
-          ENV HOST=0.0.0.0
-          ENV PORT=8110
-
-          EXPOSE 8110
-
-          CMD ["python", "app.py"]
-          EOF
-          fi
-
       - name: Cleanup ZIP and temporary files
         run: |
           ZIP_FILE="${{ steps.find_zip.outputs.zip_file }}"

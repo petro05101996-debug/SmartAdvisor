@@ -56,25 +56,6 @@ jobs:
           echo "Final repo structure:"
           ls -lah
 
-      - name: Ensure Dockerfile exists
-        run: |
-          if [ ! -f Dockerfile ]; then
-            cat > Dockerfile <<'EOF'
-          FROM python:3.11-slim
-
-          WORKDIR /app
-
-          COPY . .
-
-          ENV HOST=0.0.0.0
-          ENV PORT=8110
-
-          EXPOSE 8110
-
-          CMD ["python", "app.py"]
-          EOF
-          fi
-
       - name: Remove archive from repo
         run: |
           rm -f integration_architect_pro_v5_0_9_predeploy_checked_ru.zip
