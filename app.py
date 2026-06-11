@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Интеграционный проектировщик v7.6 — сервер.
+"""Интеграционный проектировщик v7.8 — сервер.
 
 Запуск:  python app.py
 Открыть: http://127.0.0.1:8110/
@@ -19,6 +19,7 @@ import ui
 
 HOST = os.environ.get('HOST', '0.0.0.0')
 PORT = int(os.environ.get('PORT', '8110'))
+BASE_PATH = os.environ.get('BASE_PATH', '').rstrip('/')
 MAX_POST = int(os.environ.get('MAX_POST_BYTES', str(2 * 1024 * 1024)))
 APP_DIR = Path(os.environ.get('APP_DIR', '.architect6'))
 APP_DIR.mkdir(exist_ok=True)
@@ -53,6 +54,14 @@ def load_run(rid):
 class Handler(BaseHTTPRequestHandler):
     server_version = 'Architect6'
 
+    def _route_path(self):
+        path = self.path.split('?', 1)[0]
+        if BASE_PATH and path.startswith(BASE_PATH + '/'):
+            path = path[len(BASE_PATH):]
+        elif BASE_PATH and path == BASE_PATH:
+            path = '/'
+        return path
+
     def _send(self, code, body, ctype='text/html; charset=utf-8'):
         data = body.encode('utf-8') if isinstance(body, str) else body
         self.send_response(code)
@@ -63,13 +72,14 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):
-        if self.path in ('/', '/index.html'):
+        path = self._route_path()
+        if path in ('/', '/index.html'):
             return self._send(200, ui.form_page())
-        if self.path in ('/invariants', '/invariants.html'):
+        if path in ('/invariants', '/invariants/', '/invariants.html'):
             return self._send(200, ui.invariant_reference_page())
-        if self.path == '/health':
+        if path == '/health':
             return self._send(200, '{"ok":true}', 'application/json')
-        m = RUN_RE.match(self.path)
+        m = RUN_RE.match(path)
         if m:
             res = load_run(m.group(1))
             if not res:
@@ -81,7 +91,8 @@ class Handler(BaseHTTPRequestHandler):
         return self._send(404, '<h1>404</h1>')
 
     def do_POST(self):
-        if self.path != '/api/analyze':
+        path = self._route_path()
+        if path != '/api/analyze':
             return self._send(404, '{"ok":false}', 'application/json')
         length = int(self.headers.get('Content-Length') or 0)
         if length > MAX_POST:
@@ -104,7 +115,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     srv = ThreadingHTTPServer((HOST, PORT), Handler)
-    print(f'Интеграционный проектировщик v7.6: http://127.0.0.1:{PORT}/')
+    print(f'Интеграционный проектировщик v{ui.APP_VERSION}: http://127.0.0.1:{PORT}{BASE_PATH or "/"}')
     srv.serve_forever()
 
 
