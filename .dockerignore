@@ -1,0 +1,10 @@
+.git
+.github
+__pycache__
+*.pyc
+*.pyo
+*.sqlite3
+.architect6
+.env
+.DS_Store
+*.zip
