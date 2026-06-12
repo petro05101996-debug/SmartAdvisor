@@ -1,0 +1,113 @@
+name: Unpack ZIP archive into repository
+
+on:
+  workflow_dispatch:
+    inputs:
+      archive_name:
+        description: "ZIP archive name in repository root"
+        required: true
+        default: "SmartAdvisor-main-patterns-catalog.zip"
+      mode:
+        description: "How to unpack"
+        required: true
+        default: "overlay"
+        type: choice
+        options:
+          - overlay
+          - clean
+      delete_archive:
+        description: "Delete ZIP archive after unpacking"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+permissions:
+  contents: write
+
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate archive exists
+        run: |
+          ARCHIVE="${{ github.event.inputs.archive_name }}"
+
+          if [ ! -f "$ARCHIVE" ]; then
+            echo "Archive not found: $ARCHIVE"
+            echo "Put the ZIP archive into repository root and run workflow again."
+            exit 1
+          fi
+
+          echo "Archive found: $ARCHIVE"
+
+      - name: Unpack archive
+        run: |
+          set -e
+
+          ARCHIVE="${{ github.event.inputs.archive_name }}"
+          MODE="${{ github.event.inputs.mode }}"
+          DELETE_ARCHIVE="${{ github.event.inputs.delete_archive }}"
+
+          rm -rf _unpack_tmp
+          mkdir -p _unpack_tmp
+
+          unzip -q "$ARCHIVE" -d _unpack_tmp
+
+          # If ZIP contains one top-level folder, use its contents.
+          ENTRY_COUNT=$(find _unpack_tmp -mindepth 1 -maxdepth 1 | wc -l)
+          FIRST_ENTRY=$(find _unpack_tmp -mindepth 1 -maxdepth 1 | head -n 1)
+
+          if [ "$ENTRY_COUNT" = "1" ] && [ -d "$FIRST_ENTRY" ]; then
+            SRC="$FIRST_ENTRY"
+          else
+            SRC="_unpack_tmp"
+          fi
+
+          echo "Using source directory: $SRC"
+
+          if [ "$MODE" = "clean" ]; then
+            echo "Clean mode enabled. Removing old project files except .git, .github and archive."
+
+            find . -mindepth 1 -maxdepth 1 \
+              ! -name ".git" \
+              ! -name ".github" \
+              ! -name "$ARCHIVE" \
+              ! -name "_unpack_tmp" \
+              -exec rm -rf {} +
+          fi
+
+          rsync -a "$SRC"/ ./
+
+          rm -rf _unpack_tmp
+
+          if [ "$DELETE_ARCHIVE" = "true" ]; then
+            rm -f "$ARCHIVE"
+          fi
+
+      - name: Show changed files
+        run: |
+          git status --short
+
+      - name: Commit unpacked files
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git commit -m "Unpack project archive"
+          git push
