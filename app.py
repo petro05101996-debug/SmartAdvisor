@@ -26,6 +26,7 @@ APP_DIR.mkdir(parents=True, exist_ok=True)
 DB = APP_DIR / 'runs.sqlite3'
 
 RUN_RE = re.compile(r'^/run/([0-9a-f]{32})(\.md)?$')
+HEALTH_PATHS = {'/health', '/healthz', '/readyz', '/livez'}
 
 
 def db():
@@ -62,6 +63,13 @@ class Handler(BaseHTTPRequestHandler):
             path = '/'
         return path
 
+    def _send_head(self, code=200, ctype='text/plain; charset=utf-8'):
+        self.send_response(code)
+        self.send_header('Content-Type', ctype)
+        self.send_header('Content-Length', '0')
+        self.send_header('X-Content-Type-Options', 'nosniff')
+        self.end_headers()
+
     def _send(self, code, body, ctype='text/html; charset=utf-8'):
         data = body.encode('utf-8') if isinstance(body, str) else body
         self.send_response(code)
@@ -71,13 +79,29 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def do_HEAD(self):
+        path = self._route_path()
+
+        if path in HEALTH_PATHS or path in ('/', '/index.html'):
+            return self._send_head(200)
+
+        if path in ('/invariants', '/invariants/', '/invariants.html'):
+            return self._send_head(200)
+
+        m = RUN_RE.match(path)
+        if m:
+            res = load_run(m.group(1))
+            return self._send_head(200 if res else 404)
+
+        return self._send_head(404)
+
     def do_GET(self):
         path = self._route_path()
         if path in ('/', '/index.html'):
             return self._send(200, ui.form_page())
         if path in ('/invariants', '/invariants/', '/invariants.html'):
             return self._send(200, ui.invariant_reference_page())
-        if path == '/health':
+        if path in HEALTH_PATHS:
             return self._send(200, '{"ok":true}', 'application/json')
         m = RUN_RE.match(path)
         if m:
@@ -115,7 +139,10 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     srv = ThreadingHTTPServer((HOST, PORT), Handler)
-    print(f'Интеграционный проектировщик v{ui.APP_VERSION}: http://127.0.0.1:{PORT}{BASE_PATH or "/"}')
+    print(
+        f'Интеграционный проектировщик: host={HOST} port={PORT}',
+        flush=True,
+    )
     srv.serve_forever()
 
 
