@@ -1,0 +1,169 @@
+name: Unpack ZIP archive into repository
+
+on:
+  workflow_dispatch:
+    inputs:
+      archive_name:
+        description: "ZIP archive name or path"
+        required: true
+        default: "SmartAdvisor-main-patterns-catalog(1).zip"
+      mode:
+        description: "How to unpack"
+        required: true
+        default: "clean"
+        type: choice
+        options:
+          - clean
+          - overlay
+      delete_archive:
+        description: "Delete ZIP archive after unpacking"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip rsync
+
+      - name: Show repository files
+        run: |
+          echo "Repository root:"
+          ls -la
+
+          echo ""
+          echo "ZIP files:"
+          find . -maxdepth 5 -type f -name "*.zip" -print || true
+
+      - name: Resolve archive path
+        id: archive
+        run: |
+          set -e
+
+          INPUT_ARCHIVE="${{ github.event.inputs.archive_name }}"
+
+          if [ -f "$INPUT_ARCHIVE" ]; then
+            ARCHIVE="$INPUT_ARCHIVE"
+          elif [ -f "./$INPUT_ARCHIVE" ]; then
+            ARCHIVE="./$INPUT_ARCHIVE"
+          else
+            ARCHIVE="$(find . -maxdepth 5 -type f -name "$INPUT_ARCHIVE" | head -n 1 || true)"
+          fi
+
+          if [ -z "$ARCHIVE" ] || [ ! -f "$ARCHIVE" ]; then
+            echo "Archive not found: $INPUT_ARCHIVE"
+            echo ""
+            echo "Available ZIP files:"
+            find . -maxdepth 5 -type f -name "*.zip" -print || true
+            exit 1
+          fi
+
+          echo "Archive resolved: $ARCHIVE"
+          echo "archive_path=$ARCHIVE" >> "$GITHUB_OUTPUT"
+
+      - name: Unpack archive safely
+        run: |
+          set -e
+
+          ARCHIVE="${{ steps.archive.outputs.archive_path }}"
+          MODE="${{ github.event.inputs.mode }}"
+          DELETE_ARCHIVE="${{ github.event.inputs.delete_archive }}"
+
+          echo "Archive: $ARCHIVE"
+          echo "Mode: $MODE"
+          echo "Delete archive: $DELETE_ARCHIVE"
+
+          rm -rf _unpack_tmp
+          mkdir -p _unpack_tmp
+
+          unzip -q "$ARCHIVE" -d _unpack_tmp
+
+          ENTRY_COUNT="$(find _unpack_tmp -mindepth 1 -maxdepth 1 | wc -l)"
+          FIRST_ENTRY="$(find _unpack_tmp -mindepth 1 -maxdepth 1 | head -n 1)"
+
+          if [ "$ENTRY_COUNT" = "1" ] && [ -d "$FIRST_ENTRY" ]; then
+            SRC="$FIRST_ENTRY"
+          else
+            SRC="_unpack_tmp"
+          fi
+
+          echo "Using source directory: $SRC"
+
+          if [ "$MODE" = "clean" ]; then
+            echo "Clean mode: removing old project files, but keeping .git and .github"
+
+            find . -mindepth 1 -maxdepth 1 \
+              ! -name ".git" \
+              ! -name ".github" \
+              ! -name "_unpack_tmp" \
+              ! -name "$(basename "$ARCHIVE")" \
+              -exec rm -rf {} +
+          fi
+
+          echo "Copying project files, excluding .git and .github from archive"
+
+          rsync -a \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            "$SRC"/ ./
+
+          rm -rf _unpack_tmp
+
+          if [ "$DELETE_ARCHIVE" = "true" ]; then
+            echo "Deleting archive: $ARCHIVE"
+            rm -f "$ARCHIVE"
+          fi
+
+      - name: Verify unpack result
+        run: |
+          echo "Files after unpack:"
+          ls -la
+
+          echo ""
+          echo "Python files:"
+          find . -maxdepth 2 -type f -name "*.py" -print || true
+
+          echo ""
+          echo "Workflow files kept:"
+          find .github/workflows -maxdepth 1 -type f -print || true
+
+      - name: Commit unpacked project
+        run: |
+          set -e
+
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          git add -A
+
+          # Safety: never commit workflow changes from this unpack process.
+          git reset .github/workflows || true
+
+          if git diff --cached --quiet; then
+            echo "No project changes to commit."
+            exit 0
+          fi
+
+          git status --short
+
+          git commit -m "Unpack project archive"
+          git push
