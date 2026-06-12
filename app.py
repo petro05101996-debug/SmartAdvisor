@@ -22,7 +22,7 @@ PORT = int(os.environ.get('PORT', '8110'))
 BASE_PATH = os.environ.get('BASE_PATH', '').rstrip('/')
 MAX_POST = int(os.environ.get('MAX_POST_BYTES', str(2 * 1024 * 1024)))
 APP_DIR = Path(os.environ.get('APP_DIR', '.architect6'))
-APP_DIR.mkdir(exist_ok=True)
+APP_DIR.mkdir(parents=True, exist_ok=True)
 DB = APP_DIR / 'runs.sqlite3'
 
 RUN_RE = re.compile(r'^/run/([0-9a-f]{32})(\.md)?$')
