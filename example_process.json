@@ -1,0 +1,23 @@
+{
+  "meta": {
+    "name": "Возврат средств за заказ",
+    "entity": "Refund",
+    "money": "direct",
+    "customer_visible": "yes",
+    "regulatory": true,
+    "sla_ms": 0,
+    "goal": "Вернуть деньги клиенту после отмены заказа"
+  },
+  "systems": [
+    {"name": "OrderService", "role": "internal", "stability": "stable"},
+    {"name": "PaymentGW", "role": "external", "stability": "limited", "criticality": "high"},
+    {"name": "Ledger", "role": "db"},
+    {"name": "NotificationSvc", "role": "internal"}
+  ],
+  "steps": [
+    {"order": 1, "name": "Принять запрос на возврат", "system": "OrderService", "channel": "rest", "writes_entity": true},
+    {"order": 2, "name": "Инициировать возврат в платёжке", "system": "PaymentGW", "channel": "rest", "blocking": true, "depends_on": 1},
+    {"order": 3, "name": "Записать проводку возврата", "system": "Ledger", "channel": "db", "depends_on": 2, "writes_entity": true},
+    {"order": 4, "name": "Уведомить клиента", "system": "NotificationSvc", "channel": "rest", "depends_on": 3}
+  ]
+}

@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+*.sqlite3
+*.db
+*.png
+*.log
+COMPLEX_CASE_*.md
+LANGUAGE_STYLE_SAMPLE_*.md
+LANGUAGE_STYLE_LEGACY_REPORT_*.md
+ALL_TECH_REPORT_*.md
+appdb_*/
+audit_*/
+zip_verify_*/
+.env
+.git/
