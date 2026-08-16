@@ -1,0 +1,58 @@
+name: v7-daily-persist-v2
+
+on:
+  push:
+    branches:
+      - codex/v7-real-backtest-20260816
+    paths:
+      - research/fetch_daily_history_v2.py
+      - .github/workflows/v7-daily-persist-v2.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PYTHONUNBUFFERED: "1"
+  MOEX_FROM: "2000-01-01"
+  MOEX_TILL: "2026-08-16"
+
+jobs:
+  build-and-persist:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/v7-real-backtest-20260816
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch complete official daily histories
+        run: python research/fetch_daily_history_v2.py
+      - name: Validate and package
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('research/data_daily')
+          m=json.loads((root/'manifest.json').read_text())
+          assert m['rows'] > 100000, m
+          assert m['series']['IMOEX'] > 5000, m
+          assert m['series']['MCFTRR'] > 4000, m
+          assert m['series']['CBR_GOLD_RUB_G'] > 5000, m
+          assert m['series']['RGBITR'] > 4000, m
+          print(json.dumps(m,indent=2,ensure_ascii=False))
+          PY
+          mkdir -p research/artifacts
+          tar -czf research/artifacts/v7-daily-official-snapshot-v2.tgz research/data_daily
+          sha256sum research/artifacts/v7-daily-official-snapshot-v2.tgz > research/artifacts/v7-daily-official-snapshot-v2.tgz.sha256
+      - name: Commit reproducible snapshot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin codex/v7-real-backtest-20260816
+          git add research/artifacts/v7-daily-official-snapshot-v2.tgz research/artifacts/v7-daily-official-snapshot-v2.tgz.sha256
+          git commit -m "Persist corrected v7 official daily snapshot" || exit 0
+          git push origin HEAD:codex/v7-real-backtest-20260816
