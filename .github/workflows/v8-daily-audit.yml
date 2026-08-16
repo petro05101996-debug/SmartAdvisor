@@ -27,6 +27,8 @@ jobs:
         run: python research_v8/fetch_daily_and_constituents.py
       - name: Fetch current OFZ and fund snapshots
         run: python research_v8/fetch_current_instruments.py
+      - name: Fetch current short and long OFZ index constituents
+        run: python research_v8/fetch_bond_constituents.py
       - name: Validate fetched evidence
         run: |
           python - <<'PY'
@@ -48,6 +50,8 @@ jobs:
           with (current / 'current_ofz.csv').open() as fh:
               ofz = list(csv.DictReader(fh))
           assert any(str(row.get('secid','')).startswith('SU') for row in ofz), 'no OFZ securities'
+          bonds = Path('research_v8/bond_constituents_output')
+          bond_manifest = json.loads((bonds / 'manifest.json').read_text())
           print(json.dumps({
               'daily_rows': manifest['daily_rows'],
               'constituent_rows': manifest['constituent_rows'],
@@ -57,11 +61,13 @@ jobs:
               'fund_rows': current_manifest['fund_rows'],
               'ofz_sha256': current_manifest['ofz_sha256'],
               'funds_sha256': current_manifest['funds_sha256'],
+              'bond_constituent_rows': bond_manifest['rows'],
+              'bond_constituents_sha256': bond_manifest['sha256'],
           }, indent=2))
           PY
       - name: Package evidence
         run: |
-          tar -czf v8-daily-evidence.tgz research_v8/daily_output research_v8/current_output
+          tar -czf v8-daily-evidence.tgz research_v8/daily_output research_v8/current_output research_v8/bond_constituents_output
           sha256sum v8-daily-evidence.tgz > v8-daily-evidence.tgz.sha256
       - uses: actions/upload-artifact@v4
         with:
