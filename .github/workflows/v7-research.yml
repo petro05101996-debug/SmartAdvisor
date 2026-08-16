@@ -47,15 +47,21 @@ jobs:
           compositions = json.loads((ext / 'current_compositions.json').read_text())
           assert len(compositions['indices']) >= 8, compositions
           assert sum(v['count'] for v in compositions['indices'].values()) > 10, compositions
+          assert sum(c.get('weight') is not None for v in compositions['indices'].values() for c in v['constituents']) > 10, compositions
           print(json.dumps({
               'monthly': {k: manifest[k] for k in ['rows','assets_requested','assets_nonempty','snapshot_sha256']},
               'extended': ext_manifest,
               'composition_constituents': sum(v['count'] for v in compositions['indices'].values()),
           }, indent=2))
           PY
-      - name: Package fetched evidence
+      - name: Package fetched evidence and scripts
         run: |
-          tar -czf v7-moex-snapshot.tgz research/data research/data_extended
+          tar -czf v7-moex-snapshot.tgz \
+            research/data \
+            research/data_extended \
+            research/fetch_moex_history.py \
+            research/fetch_extended_history.py \
+            research/fetch_index_compositions.py
           sha256sum v7-moex-snapshot.tgz > v7-moex-snapshot.tgz.sha256
       - uses: actions/upload-artifact@v4
         with:
