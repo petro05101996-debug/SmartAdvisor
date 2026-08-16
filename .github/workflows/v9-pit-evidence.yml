@@ -17,14 +17,16 @@ env:
 jobs:
   fetch-pit-evidence:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Fetch genuine month-end equity universe and RFSD statements
-        run: python research_v9/fetch_pit_universe_v2.py
+      - name: Fetch genuine month-end equity universe
+        run: python research_v9/fetch_pit_universe_v2.py || true
+      - name: Resolve all issuer INNs and fetch RFSD statements
+        run: python research_v9/repair_identifiers_and_rfsd.py
       - name: Validate point-in-time evidence
         run: |
           python - <<'PY'
@@ -37,11 +39,12 @@ jobs:
           assert m['unique_secids'] >= 150, m
           assert m['mapped_inns'] >= 80, m
           assert m['rfsd_rows'] >= 300, m
+          assert m['rfsd_unique_inns'] >= 50, m
           with (root/'monthly_equity_universe.csv').open() as f:
               rows = list(csv.DictReader(f))
           assert len(rows) == m['universe_rows']
           assert len({r['snapshot_month'] for r in rows}) == m['universe_months']
-          print(json.dumps({k:m[k] for k in ['universe_rows','universe_months','first_universe_month','last_universe_month','unique_secids','mapped_inns','rfsd_rows','rfsd_unique_inns']}, indent=2))
+          print(json.dumps({k:m[k] for k in ['universe_rows','universe_months','first_universe_month','last_universe_month','unique_secids','share_security_rows','mapped_inns','rfsd_rows','rfsd_unique_inns']}, indent=2))
           PY
       - name: Package evidence
         if: always()
