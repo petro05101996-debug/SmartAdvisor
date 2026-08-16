@@ -68,7 +68,7 @@ def main() -> None:
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "as_of": AS_OF,
         "source": "MOEX ISS index analytics",
-        "note": "The public endpoint supplies index membership periods; constituent weights require a separate MOEX data entitlement.",
+        "note": "The public endpoint supplied membership periods and index weights for this snapshot; verify non-null weights after each refresh.",
         "indices": {},
     }
     for sleeve, index_id in INDICES.items():
