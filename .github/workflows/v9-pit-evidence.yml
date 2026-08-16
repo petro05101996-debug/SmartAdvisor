@@ -1,0 +1,55 @@
+name: v9-pit-evidence
+
+on:
+  push:
+    branches:
+      - codex/v9-full-ml-architecture-20260816
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHONUNBUFFERED: "1"
+  PIT_START_YEAR: "2011"
+  PIT_END_DATE: "2026-08-16"
+
+jobs:
+  fetch-pit-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch point-in-time constituents, RFSD fundamentals and floaters
+        run: python research_v9/fetch_pit_fundamentals.py
+      - name: Validate evidence
+        run: |
+          python - <<'PY'
+          import csv, json
+          from pathlib import Path
+          root = Path('research_v9/pit_output')
+          m = json.loads((root/'manifest.json').read_text())
+          assert m['constituent_rows'] >= 1000, m
+          assert m['constituent_dates'] >= 40, m
+          assert m['unique_secids'] >= 30, m
+          assert m['mapped_inns'] >= 20, m
+          with (root/'historical_index_constituents.csv').open() as f:
+              rows = list(csv.DictReader(f))
+          assert len(rows) == m['constituent_rows']
+          print(json.dumps({k:m[k] for k in ['constituent_rows','constituent_dates','unique_secids','mapped_inns','rfsd_rows','floater_rows']}, indent=2))
+          PY
+      - name: Package evidence
+        run: |
+          tar -czf v9-pit-evidence.tgz research_v9/pit_output
+          sha256sum v9-pit-evidence.tgz > v9-pit-evidence.tgz.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v9-pit-evidence
+          path: |
+            v9-pit-evidence.tgz
+            v9-pit-evidence.tgz.sha256
+          retention-days: 7
+          if-no-files-found: error
