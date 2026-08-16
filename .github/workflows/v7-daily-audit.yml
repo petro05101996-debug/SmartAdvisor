@@ -1,0 +1,58 @@
+name: v7-daily-official-data
+
+on:
+  push:
+    branches:
+      - codex/v7-real-backtest-20260816
+    paths:
+      - research/fetch_daily_history.py
+      - .github/workflows/v7-daily-audit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHONUNBUFFERED: "1"
+  MOEX_FROM: "2000-01-01"
+  MOEX_TILL: "2026-08-16"
+
+jobs:
+  fetch-daily:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch official daily MOEX and CBR histories
+        run: python research/fetch_daily_history.py
+      - name: Validate daily snapshot
+        run: |
+          python - <<'PY'
+          import csv, json
+          from pathlib import Path
+          root = Path('research/data_daily')
+          manifest = json.loads((root/'manifest.json').read_text())
+          assert manifest['rows'] > 100000, manifest
+          assert manifest['series']['IMOEX'] > 5000, manifest
+          assert manifest['series']['MCFTRR'] > 4000, manifest
+          assert manifest['series']['CBR_GOLD_RUB_G'] > 5000, manifest
+          with (root/'official_daily_snapshot.csv').open() as f:
+              count = sum(1 for _ in f)-1
+          assert count == manifest['rows'], (count, manifest)
+          print(json.dumps(manifest, indent=2, ensure_ascii=False))
+          PY
+      - name: Package daily evidence
+        run: |
+          tar -czf v7-daily-official-snapshot.tgz research/data_daily
+          sha256sum v7-daily-official-snapshot.tgz > v7-daily-official-snapshot.tgz.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v7-daily-official-snapshot
+          path: |
+            v7-daily-official-snapshot.tgz
+            v7-daily-official-snapshot.tgz.sha256
+          retention-days: 7
+          if-no-files-found: error
