@@ -17,35 +17,39 @@ env:
 jobs:
   fetch-pit-evidence:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Fetch point-in-time constituents, RFSD fundamentals and floaters
-        run: python research_v9/fetch_pit_fundamentals.py
-      - name: Validate evidence
+      - name: Fetch genuine month-end equity universe and RFSD statements
+        run: python research_v9/fetch_pit_universe_v2.py
+      - name: Validate point-in-time evidence
         run: |
           python - <<'PY'
           import csv, json
           from pathlib import Path
-          root = Path('research_v9/pit_output')
+          root = Path('research_v9/pit_universe_output')
           m = json.loads((root/'manifest.json').read_text())
-          assert m['constituent_rows'] >= 1000, m
-          assert m['constituent_dates'] >= 40, m
-          assert m['unique_secids'] >= 30, m
-          assert m['mapped_inns'] >= 20, m
-          with (root/'historical_index_constituents.csv').open() as f:
+          assert m['universe_rows'] >= 8000, m
+          assert m['universe_months'] >= 150, m
+          assert m['unique_secids'] >= 150, m
+          assert m['mapped_inns'] >= 80, m
+          assert m['rfsd_rows'] >= 300, m
+          with (root/'monthly_equity_universe.csv').open() as f:
               rows = list(csv.DictReader(f))
-          assert len(rows) == m['constituent_rows']
-          print(json.dumps({k:m[k] for k in ['constituent_rows','constituent_dates','unique_secids','mapped_inns','rfsd_rows','floater_rows']}, indent=2))
+          assert len(rows) == m['universe_rows']
+          assert len({r['snapshot_month'] for r in rows}) == m['universe_months']
+          print(json.dumps({k:m[k] for k in ['universe_rows','universe_months','first_universe_month','last_universe_month','unique_secids','mapped_inns','rfsd_rows','rfsd_unique_inns']}, indent=2))
           PY
       - name: Package evidence
+        if: always()
         run: |
-          tar -czf v9-pit-evidence.tgz research_v9/pit_output
+          tar -czf v9-pit-evidence.tgz research_v9/pit_universe_output
           sha256sum v9-pit-evidence.tgz > v9-pit-evidence.tgz.sha256
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: v9-pit-evidence
           path: |
