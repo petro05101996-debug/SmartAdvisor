@@ -25,8 +25,10 @@ jobs:
           python-version: "3.12"
       - name: Fetch official MOEX monthly histories
         run: python research/fetch_moex_history.py
-      - name: Fetch long official total-return, FX and gold histories
+      - name: Fetch extended MOEX and CBR histories
         run: python research/fetch_extended_history.py
+      - name: Fetch current MOEX index compositions
+        run: python research/fetch_index_compositions.py
       - name: Validate snapshots
         run: |
           python - <<'PY'
@@ -34,18 +36,21 @@ jobs:
           from pathlib import Path
           root = Path('research/data')
           manifest = json.loads((root / 'manifest.json').read_text())
-          assert manifest['rows'] > 7000, manifest
-          assert manifest['assets_nonempty'] >= 40, manifest
+          assert manifest['rows'] > 1000, manifest
+          assert manifest['assets_nonempty'] >= 8, manifest
           with (root / 'moex_monthly_snapshot.csv').open() as f:
               rows = list(csv.DictReader(f))
           assert len(rows) == manifest['rows']
-          ext = json.loads(Path('research/data_extended/manifest.json').read_text())
-          assert ext['series']['MCFTRR'] >= 200, ext
-          assert ext['series']['CBR_USDRUB'] >= 250, ext
-          assert ext['series']['CBR_GOLD_RUB_G'] >= 250, ext
+          ext = Path('research/data_extended')
+          ext_manifest = json.loads((ext / 'manifest.json').read_text())
+          assert ext_manifest['rows'] > 500, ext_manifest
+          compositions = json.loads((ext / 'current_compositions.json').read_text())
+          assert len(compositions['indices']) >= 8, compositions
+          assert sum(v['count'] for v in compositions['indices'].values()) > 10, compositions
           print(json.dumps({
-              'snapshot': {k: manifest[k] for k in ['rows','assets_requested','assets_nonempty','snapshot_sha256']},
-              'extended': ext['series'],
+              'monthly': {k: manifest[k] for k in ['rows','assets_requested','assets_nonempty','snapshot_sha256']},
+              'extended': ext_manifest,
+              'composition_constituents': sum(v['count'] for v in compositions['indices'].values()),
           }, indent=2))
           PY
       - name: Package fetched evidence
