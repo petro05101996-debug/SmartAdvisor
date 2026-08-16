@@ -1,0 +1,61 @@
+name: v8-daily-audit
+
+on:
+  push:
+    branches:
+      - codex/v8-final-20260816
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHONUNBUFFERED: "1"
+  MOEX_DAILY_FROM: "2018-01-01"
+  MOEX_DAILY_TILL: "2026-08-16"
+
+jobs:
+  fetch-daily-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch official daily candles and current constituents
+        run: python research_v8/fetch_daily_and_constituents.py
+      - name: Validate fetched evidence
+        run: |
+          python - <<'PY'
+          import csv, json
+          from pathlib import Path
+          root = Path('research_v8/daily_output')
+          manifest = json.loads((root / 'manifest.json').read_text())
+          assert manifest['daily_rows'] >= 15000, manifest
+          with (root / 'daily_candles.csv').open() as fh:
+              rows = list(csv.DictReader(fh))
+          assert len(rows) == manifest['daily_rows']
+          required = {'MCFTRR','MEOGTRR','MEMMTRR','MEFNTRR','MEEUTRR','MECNTRR','MECHTRR','RUGBITR1Y','RUGBITR5+','RUSFARIND','GLDRUB_TOM'}
+          got = {row['secid'] for row in rows}
+          missing = sorted(required - got)
+          assert not missing, missing
+          print(json.dumps({
+              'daily_rows': manifest['daily_rows'],
+              'constituent_rows': manifest['constituent_rows'],
+              'daily_sha256': manifest['daily_sha256'],
+              'constituents_sha256': manifest['constituents_sha256'],
+          }, indent=2))
+          PY
+      - name: Package evidence
+        run: |
+          tar -czf v8-daily-evidence.tgz research_v8/daily_output
+          sha256sum v8-daily-evidence.tgz > v8-daily-evidence.tgz.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v8-daily-evidence
+          path: |
+            v8-daily-evidence.tgz
+            v8-daily-evidence.tgz.sha256
+          retention-days: 7
+          if-no-files-found: error
