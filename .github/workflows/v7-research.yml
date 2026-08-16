@@ -25,23 +25,32 @@ jobs:
           python-version: "3.12"
       - name: Fetch official MOEX monthly histories
         run: python research/fetch_moex_history.py
-      - name: Validate snapshot
+      - name: Fetch long official total-return, FX and gold histories
+        run: python research/fetch_extended_history.py
+      - name: Validate snapshots
         run: |
           python - <<'PY'
           import csv, json
           from pathlib import Path
           root = Path('research/data')
           manifest = json.loads((root / 'manifest.json').read_text())
-          assert manifest['rows'] > 1000, manifest
-          assert manifest['assets_nonempty'] >= 8, manifest
+          assert manifest['rows'] > 7000, manifest
+          assert manifest['assets_nonempty'] >= 40, manifest
           with (root / 'moex_monthly_snapshot.csv').open() as f:
               rows = list(csv.DictReader(f))
           assert len(rows) == manifest['rows']
-          print(json.dumps({k: manifest[k] for k in ['rows','assets_requested','assets_nonempty','snapshot_sha256']}, indent=2))
+          ext = json.loads(Path('research/data_extended/manifest.json').read_text())
+          assert ext['series']['MCFTRR'] >= 200, ext
+          assert ext['series']['CBR_USDRUB'] >= 250, ext
+          assert ext['series']['CBR_GOLD_RUB_G'] >= 250, ext
+          print(json.dumps({
+              'snapshot': {k: manifest[k] for k in ['rows','assets_requested','assets_nonempty','snapshot_sha256']},
+              'extended': ext['series'],
+          }, indent=2))
           PY
       - name: Package fetched evidence
         run: |
-          tar -czf v7-moex-snapshot.tgz research/data
+          tar -czf v7-moex-snapshot.tgz research/data research/data_extended
           sha256sum v7-moex-snapshot.tgz > v7-moex-snapshot.tgz.sha256
       - uses: actions/upload-artifact@v4
         with:
