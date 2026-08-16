@@ -1,0 +1,53 @@
+name: v7-real-data-research
+
+on:
+  push:
+    branches:
+      - codex/v7-real-backtest-20260816
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHONUNBUFFERED: "1"
+  MOEX_FROM: "2000-01-01"
+  MOEX_TILL: "2026-08-16"
+
+jobs:
+  fetch-and-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch official MOEX monthly histories
+        run: python research/fetch_moex_history.py
+      - name: Validate snapshot
+        run: |
+          python - <<'PY'
+          import csv, json
+          from pathlib import Path
+          root = Path('research/data')
+          manifest = json.loads((root / 'manifest.json').read_text())
+          assert manifest['rows'] > 1000, manifest
+          assert manifest['assets_nonempty'] >= 8, manifest
+          with (root / 'moex_monthly_snapshot.csv').open() as f:
+              rows = list(csv.DictReader(f))
+          assert len(rows) == manifest['rows']
+          print(json.dumps({k: manifest[k] for k in ['rows','assets_requested','assets_nonempty','snapshot_sha256']}, indent=2))
+          PY
+      - name: Package fetched evidence
+        run: |
+          tar -czf v7-moex-snapshot.tgz research/data
+          sha256sum v7-moex-snapshot.tgz > v7-moex-snapshot.tgz.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v7-moex-snapshot
+          path: |
+            v7-moex-snapshot.tgz
+            v7-moex-snapshot.tgz.sha256
+          retention-days: 7
+          if-no-files-found: error
