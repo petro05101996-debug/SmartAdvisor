@@ -1,11 +1,6 @@
 name: Build Digital Broker v30.2 APK
 
 on:
-  push:
-    branches: [codex/android-v30-2-recommender]
-    paths:
-      - 'android-v30-2-source/**'
-      - '.github/workflows/android-v30-2-build.yml'
   workflow_dispatch:
 
 permissions:
