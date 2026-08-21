@@ -94,10 +94,14 @@ jobs:
         run: |
           set -euo pipefail
           APK='digital_broker_android_v30_3/app/build/outputs/apk/release/app-release.apk'
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
           test -s "$APK"
+          test -x "$APKSIGNER"
+          test -x "$AAPT"
           unzip -t "$APK" >/dev/null
-          apksigner verify --verbose --print-certs "$APK" | tee /tmp/APK_SIGNATURE.txt
-          aapt dump badging "$APK" | tee /tmp/APK_BADGING.txt
+          "$APKSIGNER" verify --verbose --print-certs "$APK" | tee /tmp/APK_SIGNATURE.txt
+          "$AAPT" dump badging "$APK" | tee /tmp/APK_BADGING.txt
           grep -q "package: name='ru.digitalbroker.mobile' versionCode='30300' versionName='30.3.0'" /tmp/APK_BADGING.txt
           grep -q 'Verified using v2 scheme (APK Signature Scheme v2): true' /tmp/APK_SIGNATURE.txt
           mkdir -p artifact/test-results
