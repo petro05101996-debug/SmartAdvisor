@@ -1,0 +1,78 @@
+name: Build Digital Broker v30.2 APK
+
+on:
+  push:
+    branches: [codex/android-v30-2-recommender]
+    paths:
+      - 'android-v30-2-source/**'
+      - '.github/workflows/android-v30-2-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Reconstruct source bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat android-v30-2-source/chunk_*.txt > /tmp/v302-source.b64
+          base64 --decode /tmp/v302-source.b64 > /tmp/v302-source.tar.xz
+          echo '062f9fe5e52cb92afc3e4bb187a418fecc539f3db3dc077a0f6e408207d7fff7  /tmp/v302-source.tar.xz' | sha256sum -c -
+          tar -xJf /tmp/v302-source.tar.xz
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Unit tests and APK build
+        shell: bash
+        run: |
+          gradle -p digital_broker_android_v30_2 clean testDebugUnitTest assembleDebug --no-daemon --stacktrace
+
+      - name: Verify APK and prepare artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK='digital_broker_android_v30_2/app/build/outputs/apk/debug/app-debug.apk'
+          test -s "$APK"
+          mkdir -p artifact/test-results
+          cp "$APK" artifact/DigitalBroker-v30.2-mobile-shadow.apk
+          cp -R digital_broker_android_v30_2/app/build/test-results/testDebugUnitTest/. artifact/test-results/
+          cp -R digital_broker_android_v30_2/app/build/reports/tests/testDebugUnitTest artifact/test-report-html
+          cp /tmp/v302-source.tar.xz artifact/DigitalBroker-v30.2-android-source.tar.xz
+          cp "$HOME/.android/debug.keystore" artifact/build-signing-key.jks
+          aapt dump badging "$APK" > artifact/APK_BADGING.txt
+          apksigner verify --verbose --print-certs "$APK" > artifact/APK_SIGNATURE.txt
+          (cd artifact && sha256sum DigitalBroker-v30.2-mobile-shadow.apk DigitalBroker-v30.2-android-source.tar.xz > SHA256SUMS.txt)
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: digital-broker-v30-2-apk
+          path: artifact/**
+          if-no-files-found: error
+          retention-days: 30
