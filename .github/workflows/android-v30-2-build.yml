@@ -6,6 +6,11 @@ on:
     paths:
       - 'android-v30-2-source/**'
       - '.github/workflows/android-v30-2-build.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'android-v30-2-source/**'
+      - '.github/workflows/android-v30-2-build.yml'
   workflow_dispatch:
 
 permissions:
